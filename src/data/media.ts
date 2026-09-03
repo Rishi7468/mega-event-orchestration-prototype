@@ -23,13 +23,21 @@ export type CameraMedia = {
 };
 
 export const cameraMedia: CameraMedia[] = [
-  // Example — uncomment once the file exists in public/media/cameras/:
-  // {
-  //   cameraId: "cam-07",
-  //   src: "/media/cameras/cam-07.mp4",
-  //   poster: "/media/cameras/cam-07.jpg",
-  //   attribution: "Supplied by event operations",
-  // },
+  {
+    cameraId: "cam-07",
+    src: "/media/cameras/camera-01.mp4",
+    attribution: "Simulated camera feed",
+  },
+  {
+    cameraId: "cam-03",
+    src: "/media/cameras/camera-02.mp4",
+    attribution: "Simulated camera feed",
+  },
+  {
+    cameraId: "cam-12",
+    src: "/media/cameras/camera-03.mp4",
+    attribution: "Simulated camera feed",
+  },
 ];
 
 export function getCameraMedia(cameraId: string): CameraMedia | undefined {

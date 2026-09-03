@@ -83,7 +83,7 @@ export default function CrowdIntelligencePage() {
           the same pipeline regardless of which sensor produced them, so additional sources can be
           connected without changing anything downstream. Every reading below is{" "}
           <span className="font-medium text-foreground">simulated demo data</span> — no live feed
-          is connected, and no footage is registered for these cameras.
+          is connected.
         </p>
       </div>
 
