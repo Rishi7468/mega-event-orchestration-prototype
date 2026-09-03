@@ -1,0 +1,266 @@
+@import "tailwindcss";
+
+/*
+ * Two visual languages, one token system.
+ *
+ * Visitor  = premium travel utility. Light, restrained, one accent.
+ * Operator = command-center. Dark by default (not tied to OS theme —
+ *            operators work a dark room, not a preference), higher
+ *            information density.
+ *
+ * Both share the same semantic risk/status colors so a "high" reads the
+ * same whether a visitor or an operator is looking at it.
+ */
+
+:root {
+  /* Visitor (default) surface tokens */
+  --background: #fafafa;
+  --surface: #ffffff;
+  --surface-muted: #f4f4f5;
+  --border: #e4e4e7;
+  --foreground: #18181b;
+  --foreground-muted: #71717a;
+  --accent: #18181b;
+  --accent-foreground: #ffffff;
+
+  /* Semantic risk / status scale — shared by both surfaces */
+  --risk-low: #16a34a;
+  --risk-low-bg: #f0fdf4;
+  --risk-medium: #ca8a04;
+  --risk-medium-bg: #fefce8;
+  --risk-high: #ea580c;
+  --risk-high-bg: #fff7ed;
+  --risk-critical: #dc2626;
+  --risk-critical-bg: #fef2f2;
+}
+
+/* Operator command-center theme — scoped to .operator-theme, always dark */
+.operator-theme {
+  --background: #0b0d10;
+  --surface: #14171b;
+  --surface-muted: #1b1f24;
+  --border: #262b31;
+  --foreground: #e8eaed;
+  --foreground-muted: #9aa1a9;
+  --accent: #3b82f6;
+  --accent-foreground: #ffffff;
+
+  --risk-low: #22c55e;
+  --risk-low-bg: rgba(34, 197, 94, 0.12);
+  --risk-medium: #eab308;
+  --risk-medium-bg: rgba(234, 179, 8, 0.12);
+  --risk-high: #f97316;
+  --risk-high-bg: rgba(249, 115, 22, 0.12);
+  --risk-critical: #ef4444;
+  --risk-critical-bg: rgba(239, 68, 68, 0.14);
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-surface: var(--surface);
+  --color-surface-muted: var(--surface-muted);
+  --color-border: var(--border);
+  --color-foreground: var(--foreground);
+  --color-foreground-muted: var(--foreground-muted);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+
+  --color-risk-low: var(--risk-low);
+  --color-risk-low-bg: var(--risk-low-bg);
+  --color-risk-medium: var(--risk-medium);
+  --color-risk-medium-bg: var(--risk-medium-bg);
+  --color-risk-high: var(--risk-high);
+  --color-risk-high-bg: var(--risk-high-bg);
+  --color-risk-critical: var(--risk-critical);
+  --color-risk-critical-bg: var(--risk-critical-bg);
+
+  --font-sans: var(--font-geist-sans);
+  --font-mono: var(--font-geist-mono);
+}
+
+body {
+  background: var(--background);
+  color: var(--foreground);
+}
+
+/*
+ * Motion is used only to explain a change — a recommendation arriving, a
+ * condition updating. Never decorative (docs/08_UI_SPEC.md §16).
+ */
+@keyframes fade-up {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+.animate-fade-up {
+  animation: fade-up 260ms ease-out both;
+}
+
+/* Page-to-page transition: quick enough never to delay the visitor. */
+@keyframes page-in {
+  from {
+    opacity: 0;
+    transform: translateY(4px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+.animate-page-in {
+  animation: page-in 200ms ease-out both;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .animate-fade-up,
+  .animate-page-in {
+    animation: none;
+  }
+
+  *,
+  *::before,
+  *::after {
+    transition-duration: 0.01ms !important;
+  }
+}
+
+/*
+ * The visitor surface is presented as a mobile application, and applications
+ * don't show desktop scrollbar chrome. This hides the scrollbar track only —
+ * scrolling, momentum, keyboard paging and focus-scrolling are all untouched,
+ * no JS is involved, and because the bar was an overlay in the first place
+ * removing it shifts no layout. The operator surface deliberately does NOT
+ * use this: on a dense desktop dashboard the scrollbar is useful information.
+ */
+.app-scroll {
+  scrollbar-width: none; /* Firefox */
+  -ms-overflow-style: none; /* legacy Edge */
+}
+
+.app-scroll::-webkit-scrollbar {
+  width: 0;
+  height: 0;
+  display: none;
+}
+
+/*
+ * Leaflet renders its own DOM outside React, so its few structural styles are
+ * set here rather than fought with utility classes on elements we don't own.
+ */
+.leaflet-container {
+  background: var(--surface-muted);
+  font: inherit;
+  outline: none;
+}
+
+.leaflet-container .leaflet-control-attribution {
+  background: color-mix(in srgb, var(--surface) 88%, transparent);
+  color: var(--foreground-muted);
+  font-size: 10px;
+  padding: 1px 5px;
+}
+
+.leaflet-container .leaflet-control-attribution a {
+  color: var(--foreground-muted);
+}
+
+.leaflet-container .leaflet-control-zoom a {
+  background: var(--surface);
+  border-color: var(--border);
+  color: var(--foreground);
+}
+
+/*
+ * The operator works a dark room, and OpenStreetMap only publishes a light
+ * raster style. Inverting the tile layer keeps the command center dark
+ * without depending on a second (paid) tile provider — the overlay panes are
+ * drawn above this filter, so zone colours stay true.
+ */
+.operator-theme .leaflet-tile-pane {
+  filter: invert(1) hue-rotate(180deg) brightness(0.92) contrast(0.88) saturate(0.7);
+}
+
+/*
+ * Map labels. Leaflet's divIcon owns these elements, so they are styled here
+ * rather than with utility classes. Each icon is a zero-size anchor at the
+ * feature's coordinate and the label is translated to sit over (or just
+ * below) that point.
+ */
+.meho-map-label {
+  width: 0 !important;
+  height: 0 !important;
+}
+
+.meho-map-label > span {
+  position: absolute;
+  left: 0;
+  top: 0;
+  transform: translate(-50%, -50%);
+  white-space: nowrap;
+  pointer-events: none;
+}
+
+.meho-map-label--below > span {
+  transform: translate(-50%, 12px);
+}
+
+.meho-zone-chip {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 5px;
+  padding: 2px 7px;
+  border-radius: 999px;
+  border: 1px solid var(--chip);
+  background: var(--chip-surface);
+  font-size: 10px;
+  line-height: 1.4;
+}
+
+.meho-zone-chip b {
+  color: var(--chip-ink);
+  font-weight: 600;
+}
+
+.meho-zone-chip em {
+  color: var(--chip);
+  font-style: normal;
+  font-weight: 700;
+}
+
+.meho-point-label {
+  display: inline-block;
+  padding: 1px 6px;
+  border-radius: 6px;
+  background: var(--chip-surface);
+  color: var(--chip-ink);
+  font-size: 10px;
+  line-height: 1.5;
+  opacity: 0.94;
+}
+
+.meho-point-label--strong {
+  font-weight: 700;
+  letter-spacing: 0.02em;
+}
+
+/* Leaflet's hover tooltips, themed to match the surface they sit on. */
+.leaflet-tooltip {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  box-shadow: none;
+  color: var(--foreground);
+  font-size: 11px;
+  padding: 2px 7px;
+}
+
+.leaflet-tooltip-top::before {
+  border-top-color: var(--border);
+}
