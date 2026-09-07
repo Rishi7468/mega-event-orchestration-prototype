@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { AlertTriangle, Gauge, LayoutGrid, Users } from "lucide-react";
+import { BrandMark } from "@/components/shared";
 import { SimulationControl } from "./SimulationControl";
 
 const NAV_ITEMS = [
@@ -18,8 +19,7 @@ export function OperatorSidebar() {
   return (
     <aside className="flex w-60 shrink-0 flex-col border-r border-border bg-surface px-3 py-4">
       <div className="mb-6 px-1">
-        <p className="text-sm font-semibold tracking-tight text-foreground">Orchestrate</p>
-        <p className="text-[11px] text-foreground-muted">Destination intelligence</p>
+        <BrandMark />
       </div>
       <nav className="flex flex-1 flex-col gap-1">
         {NAV_ITEMS.map(({ href, label, icon: Icon }) => {

@@ -41,6 +41,23 @@ export const cameraDevices: CameraDevice[] = [
  * figures in the lineage story (observation → density → zone pressure →
  * forecast). CAM-07's spike reading is the 8,734 people / 83% density figure
  * quoted in docs/08_UI_SPEC.md §15 and wireframe 7.
+ *
+ * CAM-12 (registered in src/data/media.ts against the file literally named
+ * `camera-03.mp4` — note that filename does NOT correspond to camera id
+ * "cam-03", which is a different device using `camera-02.mp4`) carries
+ * reference footage of a visibly dense crowd. That footage is a fixed loop —
+ * it looks the same in every simulation phase — so CAM-12's baseline reading
+ * is set busier than a typical quiet-zone camera even in "normal" conditions
+ * (a specific approach-road pinch point can run busy while the wider East
+ * Zone it sits in stays low-pressure; East's own zone-level crowdPressure in
+ * zones.ts is unaffected, exactly as it is for every other phase — only this
+ * camera's local reading moves). It then escalates to "elevated" during the
+ * demand-spike scenario, same as CAM-07, and eases — but doesn't fully
+ * reset — in the outcome, the same partial-recovery shape CAM-07 shows
+ * (outcome sits between normal and the spike peak, not back at the floor).
+ * The footage remains simulated demo reference footage either way — the
+ * detection boxes visible in the clip are part of the supplied video, not
+ * live computer vision this application is running.
  */
 export const cameraObservationsNormal: CameraObservation[] = [
   {
@@ -64,9 +81,9 @@ export const cameraObservationsNormal: CameraObservation[] = [
   {
     cameraId: "cam-12",
     observedAt: "09:24:08",
-    peopleDetected: 540,
-    densityPercent: 15,
-    flowPerMinute: 44,
+    peopleDetected: 1_180,
+    densityPercent: 55,
+    flowPerMinute: 96,
     movementDirection: "→ Central",
     status: "normal",
   },
@@ -94,11 +111,11 @@ export const cameraObservationsSpike: CameraObservation[] = [
   {
     cameraId: "cam-12",
     observedAt: "09:25:57",
-    peopleDetected: 640,
-    densityPercent: 18,
-    flowPerMinute: 51,
+    peopleDetected: 1_860,
+    densityPercent: 74,
+    flowPerMinute: 148,
     movementDirection: "→ Central",
-    status: "normal",
+    status: "elevated",
   },
 ];
 
@@ -124,9 +141,9 @@ export const cameraObservationsOutcome: CameraObservation[] = [
   {
     cameraId: "cam-12",
     observedAt: "09:41:24",
-    peopleDetected: 610,
-    densityPercent: 17,
-    flowPerMinute: 47,
+    peopleDetected: 1_420,
+    densityPercent: 61,
+    flowPerMinute: 118,
     movementDirection: "→ Central",
     status: "normal",
   },

@@ -1,23 +1,26 @@
 import Link from "next/link";
 import { ArrowRight } from "lucide-react";
+import { BrandWordmark } from "@/components/shared/BrandWordmark";
 import { DemoStateNotice } from "@/components/shared/DemoStateNotice";
 import { destinations, primaryDestination } from "@/data";
 
 /**
  * Minimal entry point ahead of the two experiences (docs/08_UI_SPEC.md #1).
- * Not a product screen in its own right — just a fork into /visitor or /operator.
+ * Not a marketing page — just a product introduction and a fork into
+ * /visitor or /operator. The wordmark carries the identity; everything below
+ * it stays factual (what the two experiences do, what's actually modelled).
  */
 export default function EntryPage() {
   return (
-    <div className="flex min-h-dvh flex-col items-center justify-center gap-10 bg-background px-6 py-16">
+    <div className="flex min-h-dvh flex-col items-center justify-center gap-12 bg-background px-6 py-16">
       <div className="text-center">
-        <p className="text-sm font-medium text-foreground-muted">
-          Destination orchestration for high-footfall events
-        </p>
-        <h1 className="mt-2 text-2xl font-semibold text-foreground">
-          Mega-Event Hospitality Orchestration
+        <h1 className="text-4xl font-semibold tracking-tight text-foreground sm:text-5xl">
+          <BrandWordmark />
         </h1>
-        <p className="mx-auto mt-2 max-w-md text-sm text-foreground-muted">
+        <p className="mt-3 text-sm font-medium text-foreground-muted sm:text-base">
+          Destination intelligence for mega-events
+        </p>
+        <p className="mx-auto mt-5 max-w-md text-sm text-foreground-muted">
           One intelligence layer, two experiences: a visitor plan that adapts, and a
           destination view that coordinates.
         </p>

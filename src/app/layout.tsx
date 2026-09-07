@@ -13,9 +13,9 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Mega-Event Hospitality Orchestration",
+  title: "Pravaah — Destination Intelligence",
   description:
-    "Intelligent event-driven hospitality orchestration — a personalized visitor journey and a destination-level operator command center powered by one shared intelligence layer.",
+    "Pravaah is a destination-intelligence platform for mega-events — a personalized visitor journey and a destination-level operator command center powered by one shared intelligence layer.",
 };
 
 export default function RootLayout({ children }: LayoutProps<"/">) {
