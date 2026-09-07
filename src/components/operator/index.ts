@@ -1,4 +1,5 @@
 export { OperatorShell } from "./OperatorShell";
+export { OperatorDesktopGate } from "./OperatorDesktopGate";
 export { OperatorHeader } from "./OperatorHeader";
 export { OperatorSidebar } from "./OperatorSidebar";
 export { KpiCard } from "./KpiCard";
