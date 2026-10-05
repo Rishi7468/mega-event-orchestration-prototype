@@ -12,13 +12,13 @@ type InterventionCardProps = {
   description: string;
   availability: InterventionAvailability;
   actionLabel: string;
+  onInitiate?: () => void;
+  isInitiated?: boolean;
 };
 
 /**
  * A single organiser action. Availability is computed by the caller from
- * live mock data (route capacity, zone pressure, gate waits) — this
- * component only renders the constraint, it never invents one
- * (docs §14 "constraint-aware actions").
+ * live mock data (route capacity, zone pressure, gate waits).
  */
 export function InterventionCard({
   icon: Icon,
@@ -26,8 +26,18 @@ export function InterventionCard({
   description,
   availability,
   actionLabel,
+  onInitiate,
+  isInitiated = false,
 }: InterventionCardProps) {
-  const [initiated, setInitiated] = useState(false);
+  const [localInitiated, setLocalInitiated] = useState(false);
+  const activeInitiated = isInitiated || localInitiated;
+
+  const handleClick = () => {
+    setLocalInitiated(true);
+    if (onInitiate) {
+      onInitiate();
+    }
+  };
 
   return (
     <div className="rounded-xl border border-border bg-surface p-4">
@@ -48,11 +58,11 @@ export function InterventionCard({
 
           <button
             type="button"
-            disabled={!availability.available || initiated}
-            onClick={() => setInitiated(true)}
+            disabled={!availability.available || activeInitiated}
+            onClick={handleClick}
             className="mt-3 flex h-9 items-center gap-1.5 rounded-lg border border-border px-3 text-xs font-medium text-foreground disabled:opacity-40"
           >
-            {initiated ? (
+            {activeInitiated ? (
               <>
                 <CheckCircle2 className="h-3.5 w-3.5 text-risk-low" />
                 Initiated

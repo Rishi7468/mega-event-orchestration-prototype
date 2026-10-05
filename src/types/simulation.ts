@@ -23,3 +23,45 @@ export type OutcomeMetric = {
   before: string;
   after: string;
 };
+
+export type ActiveIntervention = {
+  id: string;
+  type: string;
+  title: string;
+  target: string;
+  initiatedAt: string;
+  status: "active" | "completed";
+};
+
+export type MetricDelta = {
+  pressuredZoneId: string;
+  pressuredZoneName: string;
+  pressuredBefore: number;
+  pressuredAfter: number;
+  pressuredDelta: number;
+  spareZoneId: string;
+  spareZoneName: string;
+  spareBefore: number;
+  spareAfter: number;
+  spareDelta: number;
+  transportBefore: number;
+  transportAfter: number;
+  transportDelta: number;
+  gateAWaitBefore?: number;
+  gateAWaitAfter?: number;
+};
+
+export type MetricSnapshot = {
+  zoneSnapshots: ZoneSnapshot[];
+};
+
+export type Measurement = {
+  id: string;
+  interventionId: string;
+  interventionTitle: string;
+  timestamp: string;
+  before: MetricSnapshot;
+  after: MetricSnapshot;
+  impact: MetricDelta;
+};
+

@@ -6,6 +6,10 @@ import { getOperatorAlerts } from "@/lib/recommendation";
 import { getGatesForPhase, getRoutesForPhase } from "@/lib/conditions";
 import { useSimulationStore } from "@/store/simulationStore";
 
+import { EVENT_CONFIGS } from "@/config/eventConfigs";
+
+import { TransportSyncBridge } from "@/components/shared/TransportSyncBridge";
+
 type OperatorHeaderProps = {
   event: Event;
 };
@@ -13,6 +17,9 @@ type OperatorHeaderProps = {
 export function OperatorHeader({ event }: OperatorHeaderProps) {
   const phase = useSimulationStore((state) => state.phase);
   const zoneSnapshots = useSimulationStore((state) => state.zoneSnapshots);
+  const activeEventConfigId = useSimulationStore((state) => state.activeEventConfigId);
+  const setEventConfig = useSimulationStore((state) => state.setEventConfig);
+
   const alertCount = getOperatorAlerts(
     zoneSnapshots,
     getGatesForPhase(phase),
@@ -27,7 +34,24 @@ export function OperatorHeader({ event }: OperatorHeaderProps) {
         </h1>
         <p className="text-xs text-foreground-muted">{event.name}</p>
       </div>
-      <div className="flex items-center gap-5">
+      <div className="flex items-center gap-4">
+        <TransportSyncBridge />
+
+        <div className="flex items-center gap-2 text-xs">
+          <span className="text-foreground-muted hidden sm:inline">Event Profile:</span>
+          <select
+            value={activeEventConfigId}
+            onChange={(e) => setEventConfig(e.target.value)}
+            className="rounded-lg border border-border bg-surface-card px-2.5 py-1 text-xs text-foreground focus:outline-none focus:ring-1 focus:ring-accent"
+          >
+            {Object.values(EVENT_CONFIGS).map((cfg) => (
+              <option key={cfg.id} value={cfg.id}>
+                {cfg.name} ({cfg.expectedAttendance.toLocaleString()} capacity)
+              </option>
+            ))}
+          </select>
+        </div>
+
         <button
           type="button"
           aria-label="Alerts"

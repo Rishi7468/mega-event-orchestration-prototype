@@ -2,6 +2,7 @@
 
 import { Bus, Clock, DoorOpen, Repeat } from "lucide-react";
 import {
+  IncidentPanel,
   InterventionCard,
   LineagePipeline,
   OutcomePanel,
@@ -27,13 +28,18 @@ import { useSimulationStore } from "@/store/simulationStore";
 export default function InterventionsPage() {
   const phase = useSimulationStore((state) => state.phase);
   const zoneSnapshots = useSimulationStore((state) => state.zoneSnapshots);
+  const activeInterventions = useSimulationStore((state) => state.activeInterventions);
+  const measurements = useSimulationStore((state) => state.measurements);
+  const executeIntervention = useSimulationStore((state) => state.executeIntervention);
   const approveResponse = useSimulationStore((state) => state.approveOperatorResponse);
 
   const gates = getGatesForPhase(phase);
   const routes = getRoutesForPhase(phase);
   const scenarioSnapshots = getScenarioSnapshots(phase);
-  const recommendation = scenarioSnapshots ? getOperatorRecommendation(scenarioSnapshots) : null;
-  const impact = scenarioSnapshots ? getRedistributionImpact(scenarioSnapshots) : null;
+
+  const latestMeasurement = measurements.length > 0 ? measurements[0] : null;
+  const recommendation = scenarioSnapshots ? getOperatorRecommendation(scenarioSnapshots, latestMeasurement) : null;
+  const impact = scenarioSnapshots ? getRedistributionImpact(scenarioSnapshots, latestMeasurement) : null;
   const recovering = isRecovering(phase);
 
   // --- Constraint checks against real mock data (docs §14) ---
@@ -78,12 +84,14 @@ export default function InterventionsPage() {
       ? { available: true, reason: "" }
       : { available: false, reason: "Conditions are already normal — no advisory needed." };
 
+  const isTypeActive = (type: string) => activeInterventions.some((a) => a.type === type);
+
   return (
     <div className="space-y-5">
       <div>
-        <h1 className="text-lg font-semibold text-foreground">Interventions</h1>
+        <h1 className="text-lg font-semibold text-foreground">Interventions & Actions</h1>
         <p className="text-xs text-foreground-muted">
-          Simulated operational decisions — constrained by real capacity, never arbitrary
+          State-driven operational actions — real state mutations & dynamic measurement
         </p>
       </div>
 
@@ -126,6 +134,8 @@ export default function InterventionsPage() {
             }
             availability={redirectAvailability}
             actionLabel="Initiate"
+            isInitiated={isTypeActive("redirect-arrivals")}
+            onInitiate={() => executeIntervention("redirect-arrivals")}
           />
           <InterventionCard
             icon={DoorOpen}
@@ -133,6 +143,8 @@ export default function InterventionsPage() {
             description="Recommend Gate B to incoming visitors ahead of Gate A, based on the current queue difference."
             availability={promoteGateAvailability}
             actionLabel="Initiate"
+            isInitiated={isTypeActive("promote-gate-b")}
+            onInitiate={() => executeIntervention("promote-gate-b")}
           />
           <InterventionCard
             icon={Bus}
@@ -144,6 +156,8 @@ export default function InterventionsPage() {
             }
             availability={shuttleAvailability}
             actionLabel="Initiate"
+            isInitiated={isTypeActive("adjust-shuttle")}
+            onInitiate={() => executeIntervention("adjust-shuttle")}
           />
           <InterventionCard
             icon={Clock}
@@ -151,6 +165,8 @@ export default function InterventionsPage() {
             description={`Encourage visitors to arrive ${timing.windowStart} – ${timing.windowEnd}, when projected crowd pressure is lower.`}
             availability={offPeakAvailability}
             actionLabel="Send advisory"
+            isInitiated={isTypeActive("recommend-off-peak")}
+            onInitiate={() => executeIntervention("recommend-off-peak")}
           />
         </div>
 
@@ -161,11 +177,12 @@ export default function InterventionsPage() {
             phase={phase}
             onApprove={approveResponse}
           />
+          <IncidentPanel />
           <div className="rounded-xl border border-border bg-surface p-4">
             <h2 className="mb-2 text-sm font-semibold text-foreground">Human control</h2>
             <p className="text-xs leading-relaxed text-foreground-muted">
-              The system recommends interventions from live conditions across {zones.length} zones. An
-              organiser reviews and approves every action — nothing here dispatches automatically.
+              The engine recommends interventions from live conditions across {zones.length} zones. An
+              organiser reviews and approves every action — state mutations are dynamically measured and synchronized.
             </p>
           </div>
         </div>

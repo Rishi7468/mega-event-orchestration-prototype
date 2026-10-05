@@ -1,15 +1,21 @@
 "use client";
 
 import Link from "next/link";
+import { useState } from "react";
 import {
+  AlertRow,
+  BeforeAfterDeltaCard,
   DestinationStatusBar,
+  EventPulseCard,
+  EventScheduleCard,
   ForecastCard,
+  IncidentPanel,
   LineagePipeline,
   OperatorPanel,
   OutcomePanel,
-  AlertRow,
   RecommendationPanel,
-  EventScheduleCard,
+  ScenarioControlPanel,
+  SituationalIntelligencePanel,
 } from "@/components/operator";
 import { CameraFeedCard } from "@/components/camera";
 import { OperatorDestinationMap } from "@/components/map";
@@ -23,6 +29,7 @@ import {
   isElevated,
   isRecovering,
 } from "@/lib/conditions";
+import { evaluateSituationalIntelligence } from "@/lib/intelligence/ruleEngine";
 import { computeDestinationSummary } from "@/lib/operator";
 import {
   getOperatorAlerts,
@@ -31,28 +38,80 @@ import {
   getUrgentForecast,
 } from "@/lib/recommendation";
 import { useSimulationStore } from "@/store/simulationStore";
+import type { SituationAssessment } from "@/types";
 
 export default function OperatorOverviewPage() {
   const phase = useSimulationStore((state) => state.phase);
+  const activeEventConfigId = useSimulationStore((state) => state.activeEventConfigId);
   const zoneSnapshots = useSimulationStore((state) => state.zoneSnapshots);
+  const incidents = useSimulationStore((state) => state.incidents);
+  const measurements = useSimulationStore((state) => state.measurements);
   const approveResponse = useSimulationStore((state) => state.approveOperatorResponse);
+  const fieldTasks = useSimulationStore((state) => state.fieldTasks);
+  const addFieldTask = useSimulationStore((state) => state.addFieldTask);
 
+  const [dismissedSituationId, setDismissedSituationId] = useState<string | null>(null);
+  const [isProcessingApproval, setIsProcessingApproval] = useState<boolean>(false);
+
+  const latestMeasurement = measurements.length > 0 ? measurements[0] : null;
   const gates = getGatesForPhase(phase);
   const routes = getRoutesForPhase(phase);
   const cameras = getCamerasForPhase(phase);
-  const alerts = getOperatorAlerts(zoneSnapshots, gates, routes);
+  const alerts = getOperatorAlerts(zoneSnapshots, gates, routes, incidents);
   const summary = computeDestinationSummary(zoneSnapshots, alerts);
   const scenarioSnapshots = getScenarioSnapshots(phase);
-  const recommendation = scenarioSnapshots ? getOperatorRecommendation(scenarioSnapshots) : null;
-  const impact = scenarioSnapshots ? getRedistributionImpact(scenarioSnapshots) : null;
+  const recommendation = scenarioSnapshots ? getOperatorRecommendation(scenarioSnapshots, latestMeasurement) : null;
+  const impact = scenarioSnapshots ? getRedistributionImpact(scenarioSnapshots, latestMeasurement) : null;
   const forecast = getUrgentForecast(zoneSnapshots);
   const recovering = isRecovering(phase);
 
-  // Where the destination currently sits in the intelligence loop — the same
-  // vocabulary the other operator screens use.
+  // Evaluate Deterministic Situational Intelligence
+  const { assessments, pulse } = evaluateSituationalIntelligence(
+    phase,
+    zoneSnapshots,
+    gates,
+    routes,
+    incidents,
+    activeEventConfigId,
+  );
+
+  const activeAssessment = assessments.find((a) => a.id !== dismissedSituationId) ?? null;
+
+  const handleApproveSituation = (assessment: SituationAssessment) => {
+    if (isProcessingApproval) return;
+    setIsProcessingApproval(true);
+
+    // 1. Trigger store intervention approval
+    approveResponse();
+
+    // 2. Dispatch tactical field task (Prevent duplicates)
+    if (assessment.recommendedAction) {
+      const isDuplicate = fieldTasks.some(
+        (t) => t.title === assessment.recommendedAction?.label && t.zoneId === assessment.zoneId,
+      );
+
+      if (!isDuplicate) {
+        addFieldTask({
+          title: assessment.recommendedAction.label,
+          assignedStaff: "Officer Ramesh (Sector 1)",
+          zoneId: assessment.zoneId,
+          gateId: "gate-b",
+          type: "gate_control",
+          priority: assessment.severity === "CRITICAL" ? "critical" : "high",
+          status: "assigned",
+          instruction: `${assessment.recommendedAction.rationale} Target: ${assessment.recommendedAction.target}.`,
+        });
+      }
+    }
+
+    setTimeout(() => {
+      setIsProcessingApproval(false);
+    }, 600);
+  };
+
   const stage = recovering
     ? "outcome"
-    : recommendation
+    : recommendation || activeAssessment
       ? "recommended"
       : isElevated(phase)
         ? "forecast"
@@ -60,13 +119,35 @@ export default function OperatorOverviewPage() {
 
   return (
     <div className="space-y-5">
+      {/* Event Scenario Simulation Controller */}
+      <ScenarioControlPanel />
+
+      {/* System-Wide Intelligence Pulse */}
+      <EventPulseCard pulse={pulse} />
+
       <DestinationStatusBar summary={summary} />
       <LineagePipeline activeStage={stage} />
 
-      {/* The result of the approved action, on the same screen as the problem
-          — an organiser should never have to navigate to find out whether
-          what they approved worked. */}
-      {recovering && impact && (
+      {/* Primary Situational Intelligence Panel */}
+      {activeAssessment && (
+        <SituationalIntelligencePanel
+          assessment={activeAssessment}
+          onApprove={handleApproveSituation}
+          onDismiss={(id) => setDismissedSituationId(id)}
+          isProcessing={isProcessingApproval}
+        />
+      )}
+
+      {/* BEFORE -> ACTION -> AFTER -> DELTA Measurement Result Card */}
+      {(recovering || phase === "outcome" || latestMeasurement) && latestMeasurement && (
+        <BeforeAfterDeltaCard
+          measurement={latestMeasurement}
+          actionTitle={activeAssessment?.recommendedAction?.label ?? "Redirect Central Arrivals to Gate B"}
+        />
+      )}
+
+      {/* Legacy Redistribution Impact Panel if available */}
+      {recovering && impact && !latestMeasurement && (
         <OutcomePanel
           rows={[
             {
@@ -142,6 +223,8 @@ export default function OperatorOverviewPage() {
             phase={phase}
             onApprove={approveResponse}
           />
+
+          <IncidentPanel />
 
           <EventScheduleCard schedule={event.schedule} compact />
         </div>

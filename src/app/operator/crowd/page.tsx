@@ -2,7 +2,7 @@
 
 import { useMemo, useState } from "react";
 import { Radio, TrendingDown, TrendingUp } from "lucide-react";
-import { CameraFeed, CameraFeedCard, CameraProvenance } from "@/components/camera";
+import { CameraFeed, CameraFeedCard, CameraProvenance, VisionCrowdControl } from "@/components/camera";
 import { LineagePipeline } from "@/components/operator";
 import { StatusBadge } from "@/components/shared";
 import { zones } from "@/data";
@@ -75,15 +75,17 @@ export default function CrowdIntelligencePage() {
 
       <LineagePipeline activeStage="observed" />
 
+      <VisionCrowdControl />
+
       <div className="flex items-start gap-2.5 rounded-xl border border-border bg-surface p-3.5">
         <Radio className="mt-0.5 h-4 w-4 shrink-0 text-foreground-muted" />
         <p className="text-xs leading-relaxed text-foreground-muted">
           Every feed here is a{" "}
           <span className="font-medium text-foreground">site camera</span>. Observations flow into
           the same pipeline regardless of which sensor produced them, so additional sources can be
-          connected without changing anything downstream. Every reading below is{" "}
-          <span className="font-medium text-foreground">simulated demo data</span> — no live feed
-          is connected.
+          connected without changing anything downstream. Connected providers can toggle between{" "}
+          <span className="font-medium text-foreground">simulation telemetry</span> and{" "}
+          <span className="font-medium text-foreground">YOLOv11 computer vision telemetry</span>.
         </p>
       </div>
 

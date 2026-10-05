@@ -1,5 +1,6 @@
-import { zoneSnapshotsOutcome, zones } from "@/data";
-import type { Recommendation, ZoneSnapshot } from "@/types";
+import { zones } from "@/data";
+import { orchestrationConfig } from "@/config/orchestrationConfig";
+import type { Measurement, Recommendation, ZoneSnapshot } from "@/types";
 
 export type RedistributionImpact = {
   pressuredZoneId: string;
@@ -19,57 +20,62 @@ function signed(delta: number): string {
 }
 
 /**
- * Finds the most pressured zone, then identifies which *other* zone
- * actually absorbs the redistributed demand — the one whose outcome
- * accommodation pressure rises relative to today's reading — rather than
- * just picking whichever zone currently has the lowest pressure. That
- * naive approach would pick the cheapest, farthest zone (East) purely
- * because it's quietest, contradicting the whole product story where North
- * is the zone with real spare capacity *and* transport to absorb demand
- * (docs/04 Scenario 1, docs/13 Scene 2 — both single out North specifically).
+ * Derives actual or estimated redistribution impact from current state snapshots or
+ * recorded real measurements (MEASURE stage).
  */
 export function getRedistributionImpact(
   currentSnapshots: ZoneSnapshot[],
-  outcomeSnapshots: ZoneSnapshot[] = zoneSnapshotsOutcome,
+  latestMeasurement?: Measurement | null,
 ): RedistributionImpact | null {
+  if (latestMeasurement?.impact) {
+    const imp = latestMeasurement.impact;
+    return {
+      pressuredZoneId: imp.pressuredZoneId,
+      spareZoneId: imp.spareZoneId,
+      pressuredZoneName: imp.pressuredZoneName,
+      spareZoneName: imp.spareZoneName,
+      pressuredBefore: imp.pressuredBefore,
+      pressuredAfter: imp.pressuredAfter,
+      spareBefore: imp.spareBefore,
+      spareAfter: imp.spareAfter,
+      transportBefore: imp.transportBefore,
+      transportAfter: imp.transportAfter,
+    };
+  }
+
   const pressured = [...currentSnapshots].sort(
     (a, b) => b.accommodationPressure - a.accommodationPressure,
   )[0];
-  if (!pressured || pressured.accommodationPressure < 80) return null;
+  if (!pressured || pressured.accommodationPressure < orchestrationConfig.thresholds.transportHigh) return null;
 
-  const pressuredOutcome = outcomeSnapshots.find((s) => s.zoneId === pressured.zoneId);
-  if (!pressuredOutcome) return null;
+  const spare = currentSnapshots.find((s) => s.zoneId === orchestrationConfig.redistribution.spareZoneId) ??
+    currentSnapshots.find((s) => s.zoneId !== pressured.zoneId);
 
-  const spare = currentSnapshots
-    .filter((snapshot) => snapshot.zoneId !== pressured.zoneId)
-    .map((current) => {
-      const outcome = outcomeSnapshots.find((s) => s.zoneId === current.zoneId);
-      return outcome ? { current, outcome, delta: outcome.accommodationPressure - current.accommodationPressure } : null;
-    })
-    .filter((candidate): candidate is NonNullable<typeof candidate> => candidate !== null)
-    .sort((a, b) => b.delta - a.delta)[0];
+  if (!spare) return null;
 
-  if (!spare || spare.delta <= 0) return null;
+  const pressuredAfter = Math.max(0, pressured.accommodationPressure + orchestrationConfig.redistribution.centralPressureDelta);
+  const spareAfter = Math.min(100, spare.accommodationPressure + orchestrationConfig.redistribution.northPressureDelta);
+  const transportAfter = Math.max(0, pressured.transportUtilization + orchestrationConfig.redistribution.transportUtilDelta);
 
   return {
     pressuredZoneId: pressured.zoneId,
-    spareZoneId: spare.current.zoneId,
+    spareZoneId: spare.zoneId,
     pressuredZoneName: zones.find((z) => z.id === pressured.zoneId)?.name ?? pressured.zoneId,
-    spareZoneName: zones.find((z) => z.id === spare.current.zoneId)?.name ?? spare.current.zoneId,
+    spareZoneName: zones.find((z) => z.id === spare.zoneId)?.name ?? spare.zoneId,
     pressuredBefore: pressured.accommodationPressure,
-    pressuredAfter: pressuredOutcome.accommodationPressure,
-    spareBefore: spare.current.accommodationPressure,
-    spareAfter: spare.outcome.accommodationPressure,
+    pressuredAfter,
+    spareBefore: spare.accommodationPressure,
+    spareAfter,
     transportBefore: pressured.transportUtilization,
-    transportAfter: pressuredOutcome.transportUtilization,
+    transportAfter,
   };
 }
 
 export function getOperatorRecommendation(
   currentSnapshots: ZoneSnapshot[],
-  outcomeSnapshots: ZoneSnapshot[] = zoneSnapshotsOutcome,
+  latestMeasurement?: Measurement | null,
 ): Recommendation | null {
-  const impact = getRedistributionImpact(currentSnapshots, outcomeSnapshots);
+  const impact = getRedistributionImpact(currentSnapshots, latestMeasurement);
   if (!impact) return null;
 
   return {

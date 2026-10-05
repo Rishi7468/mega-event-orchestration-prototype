@@ -31,8 +31,22 @@ export function getOperatorAlerts(
   snapshots: ZoneSnapshot[],
   gates: VenueGate[],
   routes: TransportRoute[],
+  incidents?: { id: string; type: string; zoneId: string; severity: string; status: string; description: string }[],
 ): Alert[] {
   const alerts: Alert[] = [];
+
+  const activeIncidents = (incidents ?? []).filter((inc) => inc.status !== "resolved");
+  for (const inc of activeIncidents) {
+    const tone = inc.severity === "high" || inc.severity === "critical" ? "critical" : "advisory";
+    const zoneNameStr = zones.find((z) => z.id === inc.zoneId)?.name ?? inc.zoneId;
+    alerts.push(
+      alert(
+        tone,
+        `INCIDENT (${inc.type.toUpperCase()}): ${zoneNameStr}`,
+        `[Status: ${inc.status.toUpperCase()}] ${inc.description}`,
+      ),
+    );
+  }
 
   const mostPressured = [...snapshots].sort((a, b) => b.crowdPressure - a.crowdPressure)[0];
   const zoneName = (zoneId: string) => zones.find((z) => z.id === zoneId)?.name ?? zoneId;

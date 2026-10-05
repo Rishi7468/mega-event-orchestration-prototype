@@ -51,19 +51,31 @@ export function isRecovering(phase: SimulationPhase): boolean {
  * would make the outcome view (docs/05 "Outcome") show pressure improving
  * while the gate experience visibly didn't.
  */
-export function getGatesForPhase(phase: SimulationPhase): VenueGate[] {
+import { useSimulationStore } from "@/store/simulationStore";
+
+/**
+ * Gate queues follow the same three-stage arc as zone pressure: calm,
+ * elevated during the spike, then easing once a response is approved.
+ */
+export function getGatesForPhase(phase: SimulationPhase, storeGates?: VenueGate[]): VenueGate[] {
+  if (storeGates && storeGates.length > 0) return storeGates;
+  const storeState = typeof window !== "undefined" ? useSimulationStore.getState() : null;
+  if (storeState?.venueGates && storeState.venueGates.length > 0) {
+    return storeState.venueGates;
+  }
   if (isRecovering(phase)) return venueGatesNormal;
   return isElevated(phase) ? venueGatesElevated : venueGatesNormal;
 }
 
 /**
- * Transport follows the same three-stage arc as crowd pressure and gate
- * queues: calm, strained during the spike, easing once a response lands.
- * Every consumer — route recommendation, journey builder, operator tables,
- * intervention constraints — reads routes through here, so no surface can
- * show a utilization figure that disagrees with the current phase.
+ * Transport follows the same three-stage arc as crowd pressure and gate queues.
  */
-export function getRoutesForPhase(phase: SimulationPhase): TransportRoute[] {
+export function getRoutesForPhase(phase: SimulationPhase, storeRoutes?: TransportRoute[]): TransportRoute[] {
+  if (storeRoutes && storeRoutes.length > 0) return storeRoutes;
+  const storeState = typeof window !== "undefined" ? useSimulationStore.getState() : null;
+  if (storeState?.routes && storeState.routes.length > 0) {
+    return storeState.routes;
+  }
   if (isRecovering(phase)) return resolveRoutes(transportSnapshotsOutcome);
   return isElevated(phase)
     ? resolveRoutes(transportSnapshotsSpike)
@@ -71,7 +83,12 @@ export function getRoutesForPhase(phase: SimulationPhase): TransportRoute[] {
 }
 
 /** Camera observations move with the phase — they are the source of the pressure figures. */
-export function getCamerasForPhase(phase: SimulationPhase): Camera[] {
+export function getCamerasForPhase(phase: SimulationPhase, storeCameras?: Camera[]): Camera[] {
+  if (storeCameras && storeCameras.length > 0) return storeCameras;
+  const storeState = typeof window !== "undefined" ? useSimulationStore.getState() : null;
+  if (storeState?.cameras && storeState.cameras.length > 0) {
+    return storeState.cameras;
+  }
   if (isRecovering(phase)) return resolveCameras(cameraObservationsOutcome);
   return isElevated(phase)
     ? resolveCameras(cameraObservationsSpike)

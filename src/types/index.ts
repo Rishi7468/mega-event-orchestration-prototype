@@ -7,3 +7,7 @@ export * from "./camera";
 export * from "./visitor";
 export * from "./recommendation";
 export * from "./simulation";
+export * from "./situation";
+export * from "./eventConfig";
+export * from "./fieldTask";
+export * from "./scenario";

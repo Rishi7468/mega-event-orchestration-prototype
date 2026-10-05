@@ -15,3 +15,9 @@ export { OutcomePanel } from "./OutcomePanel";
 export { SimulationControl } from "./SimulationControl";
 export { InterventionCard } from "./InterventionCard";
 export type { InterventionAvailability } from "./InterventionCard";
+export { IncidentPanel } from "./IncidentPanel";
+export { EventPulseCard } from "./EventPulseCard";
+export { SituationalIntelligencePanel } from "./SituationalIntelligencePanel";
+export { BeforeAfterDeltaCard } from "./BeforeAfterDeltaCard";
+export { ScenarioControlPanel } from "./ScenarioControlPanel";
+

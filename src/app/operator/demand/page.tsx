@@ -7,7 +7,7 @@ import {
   RecommendationPanel,
 } from "@/components/operator";
 import { StatusBadge } from "@/components/shared";
-import { accommodationZones, venueGatesElevated, zones } from "@/data";
+import { accommodationZones, zones } from "@/data";
 import {
   getGatesForPhase,
   getRoutesForPhase,
@@ -26,20 +26,20 @@ import { useSimulationStore } from "@/store/simulationStore";
 export default function DemandCapacityPage() {
   const phase = useSimulationStore((state) => state.phase);
   const zoneSnapshots = useSimulationStore((state) => state.zoneSnapshots);
+  const measurements = useSimulationStore((state) => state.measurements);
   const approveResponse = useSimulationStore((state) => state.approveOperatorResponse);
 
+  const latestMeasurement = measurements.length > 0 ? measurements[0] : null;
   const gates = getGatesForPhase(phase);
   const routes = getRoutesForPhase(phase);
   const scenarioSnapshots = getScenarioSnapshots(phase);
-  const recommendation = scenarioSnapshots ? getOperatorRecommendation(scenarioSnapshots) : null;
-  const impact = scenarioSnapshots ? getRedistributionImpact(scenarioSnapshots) : null;
+  const recommendation = scenarioSnapshots ? getOperatorRecommendation(scenarioSnapshots, latestMeasurement) : null;
+  const impact = scenarioSnapshots ? getRedistributionImpact(scenarioSnapshots, latestMeasurement) : null;
   const recovering = isRecovering(phase);
 
-  // The "before" side of the outcome view is always the spike reading —
-  // the worst point the destination reached this cycle — regardless of
-  // which sub-phase (response/outcome) we're currently rendering.
   const gateA = gates.find((g) => g.id === "gate-a");
-  const gateAElevated = venueGatesElevated.find((g) => g.id === "gate-a")?.estimatedWaitMinutes ?? 0;
+  const gateABefore = latestMeasurement?.impact.gateAWaitBefore ?? 18;
+  const gateAAfter = latestMeasurement?.impact.gateAWaitAfter ?? (gateA?.estimatedWaitMinutes ?? 6);
 
   return (
     <div className="space-y-5">
@@ -69,8 +69,8 @@ export default function DemandCapacityPage() {
             },
             {
               label: "Gate A wait",
-              before: `${gateAElevated}m`,
-              after: `${gateA.estimatedWaitMinutes}m`,
+              before: `${gateABefore}m`,
+              after: `${gateAAfter}m`,
               positive: true,
             },
             {

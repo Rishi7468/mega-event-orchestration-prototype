@@ -80,54 +80,64 @@ const initialState = {
   ...emptyPlan,
 };
 
-export const useVisitorStore = create<VisitorState>((set) => ({
-  ...initialState,
+import { persist, createJSONStorage } from "zustand/middleware";
 
-  // Switching events invalidates any plan built for the previous one.
-  chooseDestination: (destinationId) =>
-    set((state) =>
-      state.destinationId === destinationId
-        ? { destinationId }
-        : { destinationId, selectedDayId: null, visitMode: "planned" as VisitMode, ...emptyPlan },
-    ),
+export const useVisitorStore = create<VisitorState>()(
+  persist(
+    (set) => ({
+      ...initialState,
 
-  clearDestination: () =>
-    set({ destinationId: null, selectedDayId: null, visitMode: "planned", ...emptyPlan }),
+      // Switching events invalidates any plan built for the previous one.
+      chooseDestination: (destinationId) =>
+        set((state) =>
+          state.destinationId === destinationId
+            ? { destinationId }
+            : { destinationId, selectedDayId: null, visitMode: "planned" as VisitMode, ...emptyPlan },
+        ),
 
-  setOrigin: (originId) => set({ originId }),
+      clearDestination: () =>
+        set({ destinationId: null, selectedDayId: null, visitMode: "planned", ...emptyPlan }),
 
-  // Picking a date is itself the signal that this is a planned trip.
-  setSelectedDay: (selectedDayId) => set({ selectedDayId, visitMode: "planned" }),
+      setOrigin: (originId) => set({ originId }),
 
-  startVisitNow: () => set({ visitMode: "now", selectedDayId: null }),
+      // Picking a date is itself the signal that this is a planned trip.
+      setSelectedDay: (selectedDayId) => set({ selectedDayId, visitMode: "planned" }),
 
-  planAhead: () => set({ visitMode: "planned" }),
+      startVisitNow: () => set({ visitMode: "now", selectedDayId: null }),
 
-  updateProfile: (patch) => set((state) => ({ profile: { ...state.profile, ...patch } })),
+      planAhead: () => set({ visitMode: "planned" }),
 
-  selectStay: (zoneId, propertyId = null) =>
-    set({ selectedZoneId: zoneId, selectedPropertyId: propertyId }),
+      updateProfile: (patch) => set((state) => ({ profile: { ...state.profile, ...patch } })),
 
-  setGate: (gateId) => set({ gateId, keptOriginalPlan: false }),
+      selectStay: (zoneId, propertyId = null) =>
+        set({ selectedZoneId: zoneId, selectedPropertyId: propertyId }),
 
-  /**
-   * Pins both the departure time and the gate at the moment of departure.
-   * Without pinning the gate, the itinerary would silently re-route itself
-   * the instant conditions changed — and there would be nothing left to
-   * recommend, because the plan would already have moved.
-   */
-  startJourney: (departureTime, gateId) =>
-    set({ journeyStarted: true, departureTime, gateId, currentStepIndex: 0 }),
+      setGate: (gateId) => set({ gateId, keptOriginalPlan: false }),
 
-  advanceStep: (stepCount) =>
-    set((state) => ({
-      currentStepIndex: Math.min(state.currentStepIndex + 1, Math.max(0, stepCount - 1)),
-    })),
+      /**
+       * Pins both the departure time and the gate at the moment of departure.
+       * Without pinning the gate, the itinerary would silently re-route itself
+       * the instant conditions changed — and there would be nothing left to
+       * recommend, because the plan would already have moved.
+       */
+      startJourney: (departureTime, gateId) =>
+        set({ journeyStarted: true, departureTime, gateId, currentStepIndex: 0 }),
 
-  keepOriginalPlan: () => set({ keptOriginalPlan: true }),
+      advanceStep: (stepCount) =>
+        set((state) => ({
+          currentStepIndex: Math.min(state.currentStepIndex + 1, Math.max(0, stepCount - 1)),
+        })),
 
-  resetTrip: () => set({ ...initialState }),
-}));
+      keepOriginalPlan: () => set({ keptOriginalPlan: true }),
+
+      resetTrip: () => set({ ...initialState }),
+    }),
+    {
+      name: "meho.visitor.v1",
+      storage: createJSONStorage(() => localStorage),
+    },
+  ),
+);
 
 /**
  * A demo reset from any surface (including another tab) clears this tab's
