@@ -2,9 +2,10 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { AlertTriangle, Gauge, LayoutGrid, Users } from "lucide-react";
+import { AlertTriangle, Gauge, LayoutGrid, Users, Menu, ChevronLeft } from "lucide-react";
 import { BrandMark } from "@/components/shared";
 import { SimulationControl } from "./SimulationControl";
+import { useEventAuthoringStore } from "@/store/eventAuthoringStore";
 
 const NAV_ITEMS = [
   { href: "/operator", label: "Command Center", icon: LayoutGrid },
@@ -15,12 +16,26 @@ const NAV_ITEMS = [
 
 export function OperatorSidebar() {
   const pathname = usePathname();
+  const { isSidebarCollapsed, toggleSidebarCollapsed } = useEventAuthoringStore();
 
   return (
-    <aside className="flex w-60 shrink-0 flex-col border-r border-border bg-surface px-3 py-4">
-      <div className="mb-6 px-1">
-        <BrandMark />
+    <aside
+      className={`flex shrink-0 flex-col border-r border-border bg-surface py-4 transition-all duration-300 z-30 ${
+        isSidebarCollapsed ? "w-14 px-2" : "w-60 px-3"
+      }`}
+    >
+      <div className="mb-4 flex items-center justify-between px-1">
+        {!isSidebarCollapsed && <BrandMark />}
+        <button
+          type="button"
+          onClick={toggleSidebarCollapsed}
+          title={isSidebarCollapsed ? "Expand Sidebar (☰)" : "Collapse Sidebar"}
+          className="flex h-9 w-9 items-center justify-center rounded-lg border border-border bg-surface-muted/80 text-foreground-muted hover:bg-surface-muted hover:text-foreground transition-all"
+        >
+          {isSidebarCollapsed ? <Menu className="h-4 w-4" /> : <ChevronLeft className="h-4 w-4" />}
+        </button>
       </div>
+
       <nav className="flex flex-1 flex-col gap-1">
         {NAV_ITEMS.map(({ href, label, icon: Icon }) => {
           const active = href === "/operator" ? pathname === href : pathname.startsWith(href);
@@ -28,21 +43,25 @@ export function OperatorSidebar() {
             <Link
               key={href}
               href={href}
-              className={`flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm ${
+              title={isSidebarCollapsed ? label : undefined}
+              className={`flex items-center gap-3 rounded-lg px-2.5 py-2.5 text-sm transition-all ${
                 active
-                  ? "bg-surface-muted font-medium text-foreground"
+                  ? "bg-indigo-500/15 font-bold text-indigo-400 border border-indigo-500/30"
                   : "text-foreground-muted hover:bg-surface-muted hover:text-foreground"
-              }`}
+              } ${isSidebarCollapsed ? "justify-center" : ""}`}
             >
-              <Icon className="h-4 w-4" />
-              {label}
+              <Icon className="h-4 w-4 shrink-0" />
+              {!isSidebarCollapsed && <span>{label}</span>}
             </Link>
           );
         })}
       </nav>
-      <div className="mt-4">
-        <SimulationControl />
-      </div>
+
+      {!isSidebarCollapsed && (
+        <div className="mt-4">
+          <SimulationControl />
+        </div>
+      )}
     </aside>
   );
 }

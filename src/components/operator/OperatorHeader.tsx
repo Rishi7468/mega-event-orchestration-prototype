@@ -46,7 +46,7 @@ export function OperatorHeader({ event }: OperatorHeaderProps) {
           >
             {Object.values(EVENT_CONFIGS).map((cfg) => (
               <option key={cfg.id} value={cfg.id}>
-                {cfg.name} ({cfg.expectedAttendance.toLocaleString()} capacity)
+                {cfg.name} ({cfg.expectedAttendance.toLocaleString("en-US")} capacity)
               </option>
             ))}
           </select>

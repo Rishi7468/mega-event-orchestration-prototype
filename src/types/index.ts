@@ -11,3 +11,6 @@ export * from "./situation";
 export * from "./eventConfig";
 export * from "./fieldTask";
 export * from "./scenario";
+export * from "./eventPlan";
+export * from "./dataPipeline";
+
