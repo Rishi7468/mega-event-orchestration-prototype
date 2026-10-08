@@ -45,7 +45,7 @@ export type DestinationGeography = {
   corridors: CorridorGeometry[];
 };
 
-const mahaKumbhGeography: DestinationGeography = {
+export const mahaKumbhGeography: DestinationGeography = {
   destinationId: PRIMARY_DESTINATION_ID,
   center: [25.4255, 81.8820],
   zoom: 12,

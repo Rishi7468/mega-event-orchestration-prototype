@@ -11,12 +11,14 @@ import {
   Plane,
   ShieldCheck,
   Users,
+  Navigation,
 } from "lucide-react";
 import { Button, Card, Chip, SectionHeading, StickyActions } from "@/components/shared";
 import { JourneyTimeline, VisitorPageHeader } from "@/components/visitor";
 import { useTripIntent } from "@/hooks/useTripIntent";
 import { useVisitorJourney } from "@/hooks/useVisitorJourney";
 import { useVisitorStore } from "@/store/visitorStore";
+import { useSimulationStore } from "@/store/simulationStore";
 
 const congestionLabel = { low: "Light", medium: "Moderate", high: "Heavy" } as const;
 
@@ -25,6 +27,7 @@ export default function JourneyPlannerPage() {
   const { journey, journeyStarted } = useVisitorJourney();
   const { origin, destination, inboundLeg } = useTripIntent();
   const startJourney = useVisitorStore((state) => state.startJourney);
+  const eventRouting = useSimulationStore((state) => state.eventRouting);
 
   if (!journey) {
     return (
@@ -105,6 +108,75 @@ export default function JourneyPlannerPage() {
             <p className="text-sm font-semibold text-foreground">{journey.reliabilityPercent}%</p>
           </div>
         </Card>
+
+        {/* PHASE 5: EVENT-AWARE ROUTE SELECTION CARD */}
+        {eventRouting && eventRouting.recommendedRoute && (
+          <Card className="border-emerald-500/30 bg-emerald-950/20 p-4">
+            <div className="flex items-start gap-3">
+              <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-emerald-500/20 text-emerald-400">
+                <Navigation className="h-5 w-5" />
+              </div>
+              <div className="min-w-0 flex-1">
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <div className="flex items-center gap-2">
+                    <span className="text-xs font-bold uppercase tracking-wider text-emerald-400">
+                      ⚡ Event-Aware Route Selected
+                    </span>
+                    <Chip tone="positive">Score-Optimized</Chip>
+                  </div>
+                  <span className="text-xs font-mono font-semibold text-emerald-300">
+                    {eventRouting.recommendedRoute.effectiveEtaMinutes} min · {eventRouting.recommendedRoute.distanceMeters}m
+                  </span>
+                </div>
+
+                <p className="mt-1 text-sm font-semibold text-foreground">
+                  {eventRouting.recommendedRoute.name}
+                </p>
+
+                {/* Explicit Human-Readable Explanation */}
+                <div className="mt-2.5 rounded-lg border border-emerald-500/20 bg-emerald-900/30 p-2.5 text-xs leading-relaxed text-emerald-200">
+                  <span className="font-semibold text-emerald-300">Why this route: </span>
+                  {eventRouting.recommendedRoute.explanation}
+                </div>
+
+                {/* Candidate Path Comparison List */}
+                <div className="mt-3 space-y-1.5 border-t border-border/40 pt-2.5">
+                  <p className="text-[11px] font-semibold text-foreground-muted uppercase tracking-wider">
+                    Evaluated Route Candidates
+                  </p>
+                  {eventRouting.candidates.map((cand) => {
+                    const isBest = cand.id === eventRouting.recommendedRoute.id;
+                    return (
+                      <div
+                        key={cand.id}
+                        className={`flex items-center justify-between rounded-md p-2 text-xs transition-colors ${
+                          isBest
+                            ? "bg-emerald-500/10 font-medium text-emerald-300 border border-emerald-500/30"
+                            : "bg-surface-muted/60 text-foreground-muted hover:bg-surface-muted"
+                        }`}
+                      >
+                        <div className="min-w-0 flex-1 pr-2">
+                          <div className="flex items-center gap-1.5">
+                            <span className="font-semibold text-foreground truncate">{cand.name}</span>
+                            {isBest && <Chip tone="positive">Best</Chip>}
+                            {cand.status === "congested" && <Chip tone="warning">Congested</Chip>}
+                          </div>
+                          <p className="text-[10px] text-foreground-muted truncate">
+                            Traverses: {cand.zonePath.join(" → ").toUpperCase()} · Crowd: {cand.dominantCrowdLevel}
+                          </p>
+                        </div>
+                        <div className="text-right shrink-0">
+                          <p className="font-mono font-bold text-foreground">{cand.effectiveEtaMinutes} min</p>
+                          <p className="text-[10px] text-foreground-muted">{cand.distanceMeters}m</p>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            </div>
+          </Card>
+        )}
 
         {/* Timing advice — the "when should I leave" answer (docs/07 §5). */}
         <Card className="p-4">

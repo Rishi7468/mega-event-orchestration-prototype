@@ -17,6 +17,7 @@ export function VisionCrowdControl() {
     const provider = new VisionCrowdProvider();
     const density = highDensity ? 3.25 : 1.4; // 3.25 persons/m² = ~93% pressure
     const count = highDensity ? 287 : 110;
+    const trackIds = Array.from({ length: highDensity ? 6 : 3 }, (_, i) => `trk_central_${101 + i}`);
 
     const rawData: RawVisionTelemetry = {
       cameraId: "cam-central-01",
@@ -25,12 +26,34 @@ export function VisionCrowdControl() {
       densityPerSqMeter: density,
       timestamp: new Date().toLocaleTimeString(),
       model: "yolo11",
+      confidencePercent: highDensity ? 96 : 94,
+      trackIds,
+      source: "CV",
     };
 
     provider.ingestVisionTelemetry(rawData);
     setTelemetryLog(rawData);
 
     const updatedSnapshots = await provider.fetchZoneSnapshots(zoneSnapshots);
+    const liveCrowdState = provider.getLiveCrowdState("central", 50000);
+
+    const store = useSimulationStore.getState();
+    store.updateZoneCrowdState("central", {
+      ...liveCrowdState,
+      peopleCount: highDensity ? 47500 : 21000,
+      occupancyPercent: highDensity ? 95 : 42,
+      crowdLevel: highDensity ? "CRITICAL" : "LOW",
+      trend: highDensity ? "INCREASING" : "DECREASING",
+      confidencePercent: 96,
+      source: "CV",
+      anonymousTrackIds: trackIds,
+    });
+
+    store.updateFlowEdges([
+      { sourceZoneId: "south", targetZoneId: "central", peoplePerMinute: highDensity ? 680 : 310 },
+      { sourceZoneId: "central", targetZoneId: "north", peoplePerMinute: highDensity ? 540 : 220 },
+      { sourceZoneId: "east", targetZoneId: "central", peoplePerMinute: highDensity ? 390 : 150 },
+    ]);
 
     useSimulationStore.setState({
       zoneSnapshots: updatedSnapshots,

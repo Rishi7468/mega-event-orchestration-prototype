@@ -27,7 +27,25 @@ import type {
   TransportRoute,
   VenueGate,
   ZoneSnapshot,
+  ZoneCrowdState,
+  EdgeCrowdState,
+  CrowdFlowGraph,
+  ZonePredictionState,
+  EventAwareRoutingResult,
+  ActiveJourneyState,
+  ActiveItineraryState,
+  ItineraryPreferences,
 } from "@/types";
+import { mapCameraTelemetryToEdges } from "@/lib/cv/cameraEdgeRegistry";
+import { createInitialCrowdFlowGraph, updateCrowdFlowGraphWithTelemetry } from "@/lib/intelligence/flowGraphEngine";
+import {
+  calculateInterventionScenario,
+  type InterventionItem,
+  type ScenarioCalculationResult,
+} from "@/lib/intelligence/scenarioEngine";
+import { computeAllZonePredictions } from "@/lib/intelligence/predictionEngine";
+import { calculateEventAwareRoutes } from "@/lib/intelligence/eventRoutingEngine";
+import { optimizeMultiStopItinerary } from "@/lib/intelligence/itineraryOptimizer";
 
 const PHASE_ORDER: SimulationPhase[] = [
   "normal",
@@ -71,10 +89,81 @@ const initialFieldTasks: FieldTask[] = [
   },
 ];
 
+const initialLiveCrowdStates: Record<string, ZoneCrowdState> = {
+  central: {
+    zoneId: "central",
+    peopleCount: 31000,
+    occupancyPercent: 62,
+    densityPerSqMeter: 1.55,
+    crowdLevel: "MODERATE",
+    trend: "STABLE",
+    confidencePercent: 94,
+    lastUpdated: "Just now",
+    source: "SIMULATED",
+    anonymousTrackIds: ["trk_central_101", "trk_central_102", "trk_central_103"],
+  },
+  north: {
+    zoneId: "north",
+    peopleCount: 16800,
+    occupancyPercent: 42,
+    densityPerSqMeter: 1.05,
+    crowdLevel: "LOW",
+    trend: "STABLE",
+    confidencePercent: 94,
+    lastUpdated: "Just now",
+    source: "SIMULATED",
+    anonymousTrackIds: ["trk_north_101", "trk_north_102"],
+  },
+  east: {
+    zoneId: "east",
+    peopleCount: 10850,
+    occupancyPercent: 31,
+    densityPerSqMeter: 0.78,
+    crowdLevel: "LOW",
+    trend: "STABLE",
+    confidencePercent: 92,
+    lastUpdated: "Just now",
+    source: "SIMULATED",
+    anonymousTrackIds: ["trk_east_101"],
+  },
+  south: {
+    zoneId: "south",
+    peopleCount: 11400,
+    occupancyPercent: 38,
+    densityPerSqMeter: 0.95,
+    crowdLevel: "LOW",
+    trend: "STABLE",
+    confidencePercent: 92,
+    lastUpdated: "Just now",
+    source: "SIMULATED",
+    anonymousTrackIds: ["trk_south_101"],
+  },
+};
+
 export type SimulationState = {
   phase: SimulationPhase;
   activeEventConfigId: string;
   zoneSnapshots: ZoneSnapshot[];
+  liveCrowdStates: Record<string, ZoneCrowdState>;
+  edgeCrowdStates: Record<string, EdgeCrowdState>;
+  flowGraph: CrowdFlowGraph;
+  predictions: Record<string, ZonePredictionState>;
+  eventRouting: EventAwareRoutingResult;
+  activeJourney: ActiveJourneyState;
+  activeItinerary: ActiveItineraryState;
+  acknowledgedRecommendationIds: string[];
+  activeRecommendationHighlight: {
+    affectedZoneId?: string;
+    affectedEdgeId?: string;
+    alternativeEdgeId?: string;
+  } | null;
+  activeScenarioResult: ScenarioCalculationResult | null;
+  appliedSimulatedInterventions: InterventionItem[];
+
+  simulateScenario: (interventions: InterventionItem[]) => void;
+  applySimulatedInterventions: (interventions: InterventionItem[]) => void;
+  resetSimulatedInterventions: () => void;
+  clearScenario: () => void;
   venueGates: VenueGate[];
   routes: TransportRoute[];
   cameras: Camera[];
@@ -83,6 +172,45 @@ export type SimulationState = {
   activeInterventions: ActiveIntervention[];
   measurements: Measurement[];
   visitorTravelMinutes: number;
+
+  updateZoneCrowdState: (zoneId: string, state: Partial<ZoneCrowdState>) => void;
+  updateAllZoneCrowdStates: (states: Record<string, ZoneCrowdState>) => void;
+  updateEdgeCrowdStates: (updates: Record<string, EdgeCrowdState>) => void;
+  updateCameraTelemetry: (
+    cameraId: string,
+    personCount: number,
+    confidencePercent: number,
+    trackIds: string[],
+    source?: "REAL_VIDEO" | "SIMULATED"
+  ) => void;
+  updateFlowGraph: (newGraph: CrowdFlowGraph) => void;
+  updateFlowEdges: (patches: Array<{ sourceZoneId: string; targetZoneId: string; peoplePerMinute: number }>) => void;
+  recalculatePredictions: (whatIfReductionPercent?: number) => void;
+  recalculateEventRoutes: (originZoneId?: string, destinationZoneId?: string) => void;
+
+  startActiveJourney: (originZoneId?: string, destinationZoneId?: string) => void;
+  evaluateActiveJourneyReroute: () => void;
+  acceptReroute: () => void;
+  dismissReroute: () => void;
+
+  buildMultiStopItinerary: (
+    startZoneId?: string,
+    availableTimeMinutes?: number,
+    selectedLandmarkIds?: string[],
+    preferences?: Partial<ItineraryPreferences>
+  ) => void;
+  evaluateActiveItineraryReorder: () => void;
+  acceptItineraryReorder: () => void;
+  dismissItineraryReorder: () => void;
+
+  acknowledgeRecommendation: (id: string) => void;
+  setRecommendationHighlight: (
+    highlight: {
+      affectedZoneId?: string;
+      affectedEdgeId?: string;
+      alternativeEdgeId?: string;
+    } | null
+  ) => void;
 
   setEventConfig: (configId: string) => void;
   advancePhase: () => void;
@@ -103,12 +231,67 @@ export type SimulationState = {
   reset: () => void;
 };
 
+const initialFlowGraph = createInitialCrowdFlowGraph();
+const initialPredictions = computeAllZonePredictions(initialLiveCrowdStates, initialFlowGraph.zoneFlows).zonePredictions;
+const initialEventRouting = calculateEventAwareRoutes("south", "central", initialLiveCrowdStates, initialPredictions);
+
+const initialActiveJourney: ActiveJourneyState = {
+  journeyActive: false,
+  originZoneId: "south",
+  destinationZoneId: "central",
+  currentRoute: initialEventRouting.recommendedRoute,
+  startedAt: null,
+  currentRouteCost: initialEventRouting.recommendedRoute.totalRouteCost,
+  lastEvaluatedAt: null,
+  rerouteAvailable: false,
+  rerouteReason: null,
+  pendingAlternativeRoute: null,
+  lastRerouteTimestamp: 0,
+  userAcceptedRerouteCount: 0,
+};
+
+const initialActiveItinerary: ActiveItineraryState = {
+  active: false,
+  startZoneId: "south",
+  availableTimeMinutes: 240,
+  selectedLandmarkIds: ["sangam", "temple", "cultural", "food-market"],
+  preferences: {
+    avoidCrowds: false,
+    minimizeWalking: false,
+    maximizeAttractions: true,
+  },
+  result: optimizeMultiStopItinerary(
+    "south",
+    240,
+    ["sangam", "temple", "cultural", "food-market"],
+    { avoidCrowds: false, minimizeWalking: false, maximizeAttractions: true },
+    initialLiveCrowdStates,
+    initialPredictions
+  ),
+  reorderAvailable: false,
+  reorderReason: null,
+  pendingResult: null,
+  lastEvaluatedTimestamp: 0,
+  userAcceptedReorderCount: 0,
+};
+
 export const useSimulationStore = create<SimulationState>()(
   persist(
     (set, get) => ({
       phase: "normal",
       activeEventConfigId: "kumbh-mela",
       zoneSnapshots: zoneSnapshotsNormal,
+      liveCrowdStates: initialLiveCrowdStates,
+      edgeCrowdStates: {},
+      flowGraph: initialFlowGraph,
+      predictions: initialPredictions,
+      eventRouting: initialEventRouting,
+      activeJourney: initialActiveJourney,
+      activeItinerary: initialActiveItinerary,
+      acknowledgedRecommendationIds: [],
+      activeRecommendationHighlight: null,
+      activeScenarioResult: null,
+      appliedSimulatedInterventions: [],
       venueGates: initialGates,
       routes: initialRoutes,
       cameras: initialCameras,
@@ -117,6 +300,436 @@ export const useSimulationStore = create<SimulationState>()(
       activeInterventions: [],
       measurements: [],
       visitorTravelMinutes: 42,
+
+      simulateScenario: (interventions) => {
+        const state = get();
+        const result = calculateInterventionScenario(
+          interventions,
+          state.liveCrowdStates,
+          state.edgeCrowdStates,
+          state.predictions,
+          state.activeJourney,
+          state.activeItinerary
+        );
+        set({ activeScenarioResult: result });
+      },
+
+      applySimulatedInterventions: (interventions) => {
+        const state = get();
+        const result = calculateInterventionScenario(
+          interventions,
+          state.liveCrowdStates,
+          state.edgeCrowdStates,
+          state.predictions,
+          state.activeJourney,
+          state.activeItinerary
+        );
+
+        const updatedZoneStates = { ...state.liveCrowdStates };
+        Object.values(result.horizons["15m"].zones).forEach((proj) => {
+          if (updatedZoneStates[proj.zoneId]) {
+            updatedZoneStates[proj.zoneId] = {
+              ...updatedZoneStates[proj.zoneId],
+              occupancyPercent: proj.projectedOccupancyPercent,
+              peopleCount: proj.projectedPeopleCount,
+              crowdLevel: proj.projectedCrowdLevel,
+              source: "SIMULATED",
+            };
+          }
+        });
+
+        set({
+          activeScenarioResult: result,
+          appliedSimulatedInterventions: interventions,
+          liveCrowdStates: updatedZoneStates,
+        });
+
+        get().recalculatePredictions();
+        get().recalculateEventRoutes();
+      },
+
+      resetSimulatedInterventions: () => {
+        set({
+          activeScenarioResult: null,
+          appliedSimulatedInterventions: [],
+        });
+        get().recalculatePredictions();
+        get().recalculateEventRoutes();
+      },
+
+      clearScenario: () => {
+        set({ activeScenarioResult: null });
+      },
+
+      acknowledgeRecommendation: (id) => {
+        set((state) => ({
+          acknowledgedRecommendationIds: Array.from(
+            new Set([...state.acknowledgedRecommendationIds, id])
+          ),
+        }));
+      },
+
+      setRecommendationHighlight: (highlight) => {
+        set({ activeRecommendationHighlight: highlight });
+      },
+
+      updateEdgeCrowdStates: (updates) => {
+        set((state) => ({
+          edgeCrowdStates: {
+            ...state.edgeCrowdStates,
+            ...updates,
+          },
+        }));
+      },
+
+      updateCameraTelemetry: (cameraId, personCount, confidencePercent, trackIds, source = "REAL_VIDEO") => {
+        const edgeUpdates = mapCameraTelemetryToEdges(
+          cameraId,
+          personCount,
+          confidencePercent,
+          trackIds,
+          source
+        );
+        set((state) => ({
+          edgeCrowdStates: {
+            ...state.edgeCrowdStates,
+            ...edgeUpdates,
+          },
+        }));
+      },
+
+      recalculateEventRoutes: (originZoneId = "south", destinationZoneId = "central") => {
+        const state = get();
+        const activeIncidentsZones = state.incidents
+          .filter((i) => i.status !== "resolved")
+          .map((i) => i.zoneId);
+        const result = calculateEventAwareRoutes(
+          originZoneId,
+          destinationZoneId,
+          state.liveCrowdStates,
+          state.predictions,
+          activeIncidentsZones
+        );
+        set({ eventRouting: result });
+      },
+
+      evaluateActiveJourneyReroute: () => {
+        const state = get();
+        const aj = state.activeJourney;
+        if (!aj || !aj.journeyActive || !aj.currentRoute) return;
+
+        const now = Date.now();
+        // Anti-oscillation Rule: 10s cooldown unless reroute already offered
+        if (now - aj.lastRerouteTimestamp < 10000 && !aj.rerouteAvailable) return;
+
+        const routingResult = calculateEventAwareRoutes(
+          aj.originZoneId,
+          aj.destinationZoneId,
+          state.liveCrowdStates,
+          state.predictions
+        );
+
+        const bestAlternative = routingResult.recommendedRoute;
+        const currentRouteId = aj.currentRoute.id;
+        const currentUpdated =
+          routingResult.candidates.find((c) => c.id === currentRouteId) ?? aj.currentRoute;
+        const currentCost = currentUpdated.totalRouteCost;
+
+        let triggerReason: string | null = null;
+
+        if (
+          currentUpdated.dominantCrowdLevel === "CRITICAL" ||
+          currentUpdated.dominantCrowdLevel === "HIGH"
+        ) {
+          triggerReason = `Crowd pressure on your current route has escalated to ${currentUpdated.dominantCrowdLevel}.`;
+        } else if (currentUpdated.predictedRiskLevel === "CRITICAL") {
+          triggerReason = `A zone along your current route is predicted to reach CRITICAL density within 15 minutes.`;
+        } else if (currentUpdated.incidentPenalty > 0) {
+          triggerReason = `An active operational restriction is affecting your current corridor.`;
+        } else if (
+          bestAlternative.id !== currentRouteId &&
+          bestAlternative.totalRouteCost + 12 < currentCost
+        ) {
+          triggerReason = `A significantly faster, less congested bypass route is available.`;
+        }
+
+        if (triggerReason && bestAlternative.id !== currentRouteId) {
+          set((s) => ({
+            activeJourney: {
+              ...s.activeJourney,
+              currentRouteCost: currentCost,
+              lastEvaluatedAt: new Date().toLocaleTimeString([], {
+                hour: "2-digit",
+                minute: "2-digit",
+                second: "2-digit",
+              }),
+              rerouteAvailable: true,
+              rerouteReason: triggerReason,
+              pendingAlternativeRoute: bestAlternative,
+            },
+          }));
+        } else {
+          set((s) => ({
+            activeJourney: {
+              ...s.activeJourney,
+              currentRoute: currentUpdated,
+              currentRouteCost: currentCost,
+              lastEvaluatedAt: new Date().toLocaleTimeString([], {
+                hour: "2-digit",
+                minute: "2-digit",
+                second: "2-digit",
+              }),
+            },
+          }));
+        }
+      },
+
+      startActiveJourney: (originZoneId = "south", destinationZoneId = "central") => {
+        const state = get();
+        const routing = calculateEventAwareRoutes(
+          originZoneId,
+          destinationZoneId,
+          state.liveCrowdStates,
+          state.predictions
+        );
+        set({
+          activeJourney: {
+            journeyActive: true,
+            originZoneId,
+            destinationZoneId,
+            currentRoute: routing.recommendedRoute,
+            startedAt: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
+            currentRouteCost: routing.recommendedRoute.totalRouteCost,
+            lastEvaluatedAt: new Date().toLocaleTimeString([], {
+              hour: "2-digit",
+              minute: "2-digit",
+              second: "2-digit",
+            }),
+            rerouteAvailable: false,
+            rerouteReason: null,
+            pendingAlternativeRoute: null,
+            lastRerouteTimestamp: Date.now(),
+            userAcceptedRerouteCount: 0,
+          },
+        });
+      },
+
+      acceptReroute: () => {
+        set((s) => {
+          const aj = s.activeJourney;
+          if (!aj.pendingAlternativeRoute) return s;
+          return {
+            activeJourney: {
+              ...aj,
+              currentRoute: aj.pendingAlternativeRoute,
+              currentRouteCost: aj.pendingAlternativeRoute.totalRouteCost,
+              rerouteAvailable: false,
+              rerouteReason: null,
+              pendingAlternativeRoute: null,
+              lastRerouteTimestamp: Date.now(),
+              userAcceptedRerouteCount: aj.userAcceptedRerouteCount + 1,
+            },
+          };
+        });
+      },
+
+      dismissReroute: () => {
+        set((s) => ({
+          activeJourney: {
+            ...s.activeJourney,
+            rerouteAvailable: false,
+            rerouteReason: null,
+            pendingAlternativeRoute: null,
+            lastRerouteTimestamp: Date.now(),
+          },
+        }));
+      },
+
+      buildMultiStopItinerary: (
+        startZoneId,
+        availableTimeMinutes,
+        selectedLandmarkIds,
+        preferences
+      ) => {
+        const state = get();
+        const sZone = startZoneId ?? state.activeItinerary.startZoneId;
+        const timeMins = availableTimeMinutes ?? state.activeItinerary.availableTimeMinutes;
+        const landmarks = selectedLandmarkIds ?? state.activeItinerary.selectedLandmarkIds;
+        const prefs = { ...state.activeItinerary.preferences, ...preferences };
+
+        const activeIncidentsZones = state.incidents
+          .filter((i) => i.status !== "resolved")
+          .map((i) => i.zoneId);
+
+        const result = optimizeMultiStopItinerary(
+          sZone,
+          timeMins,
+          landmarks,
+          prefs,
+          state.liveCrowdStates,
+          state.predictions,
+          activeIncidentsZones
+        );
+
+        set({
+          activeItinerary: {
+            active: true,
+            startZoneId: sZone,
+            availableTimeMinutes: timeMins,
+            selectedLandmarkIds: landmarks,
+            preferences: prefs,
+            result,
+            reorderAvailable: false,
+            reorderReason: null,
+            pendingResult: null,
+            lastEvaluatedTimestamp: Date.now(),
+            userAcceptedReorderCount: state.activeItinerary.userAcceptedReorderCount,
+          },
+        });
+      },
+
+      evaluateActiveItineraryReorder: () => {
+        const state = get();
+        const ai = state.activeItinerary;
+        if (!ai || !ai.active || !ai.result || ai.result.stops.length === 0) return;
+
+        const now = Date.now();
+        if (now - ai.lastEvaluatedTimestamp < 10000 && !ai.reorderAvailable) return;
+
+        const activeIncidentsZones = state.incidents
+          .filter((i) => i.status !== "resolved")
+          .map((i) => i.zoneId);
+
+        const freshResult = optimizeMultiStopItinerary(
+          ai.startZoneId,
+          ai.availableTimeMinutes,
+          ai.selectedLandmarkIds,
+          ai.preferences,
+          state.liveCrowdStates,
+          state.predictions,
+          activeIncidentsZones
+        );
+
+        const currentOrder = ai.result.stops.map((s) => s.landmarkId).join(",");
+        const newOrder = freshResult.stops.map((s) => s.landmarkId).join(",");
+
+        if (newOrder !== currentOrder && freshResult.overallScore > ai.result.overallScore + 10) {
+          const affectedStop = freshResult.stops.find((stop) => {
+            const live = state.liveCrowdStates[stop.zoneId];
+            return live?.crowdLevel === "HIGH" || live?.crowdLevel === "CRITICAL";
+          });
+
+          const reorderReason = affectedStop
+            ? `Your journey was reordered because crowd pressure at ${affectedStop.name} is rising.`
+            : `An optimized sequence is available to avoid predicted crowd congestion.`;
+
+          set((s) => ({
+            activeItinerary: {
+              ...s.activeItinerary,
+              reorderAvailable: true,
+              reorderReason,
+              pendingResult: freshResult,
+              lastEvaluatedTimestamp: Date.now(),
+            },
+          }));
+        } else {
+          set((s) => ({
+            activeItinerary: {
+              ...s.activeItinerary,
+              result: freshResult,
+              lastEvaluatedTimestamp: Date.now(),
+            },
+          }));
+        }
+      },
+
+      acceptItineraryReorder: () => {
+        set((s) => {
+          const ai = s.activeItinerary;
+          if (!ai.pendingResult) return s;
+          return {
+            activeItinerary: {
+              ...ai,
+              result: ai.pendingResult,
+              reorderAvailable: false,
+              reorderReason: null,
+              pendingResult: null,
+              lastEvaluatedTimestamp: Date.now(),
+              userAcceptedReorderCount: ai.userAcceptedReorderCount + 1,
+            },
+          };
+        });
+      },
+
+      dismissItineraryReorder: () => {
+        set((s) => ({
+          activeItinerary: {
+            ...s.activeItinerary,
+            reorderAvailable: false,
+            reorderReason: null,
+            pendingResult: null,
+            lastEvaluatedTimestamp: Date.now(),
+          },
+        }));
+      },
+
+      recalculatePredictions: (whatIfReductionPercent = 30) => {
+        const state = get();
+        const forecast = computeAllZonePredictions(
+          state.liveCrowdStates,
+          state.flowGraph.zoneFlows,
+          undefined,
+          whatIfReductionPercent
+        );
+        set({ predictions: forecast.zonePredictions });
+        get().recalculateEventRoutes();
+        get().evaluateActiveJourneyReroute();
+        get().evaluateActiveItineraryReorder();
+      },
+
+      updateFlowGraph: (newGraph) => {
+        set({ flowGraph: newGraph });
+        get().recalculatePredictions();
+      },
+
+      updateFlowEdges: (patches) => {
+        set((state) => ({
+          flowGraph: updateCrowdFlowGraphWithTelemetry(state.flowGraph, patches),
+        }));
+        get().recalculatePredictions();
+      },
+
+      updateZoneCrowdState: (zoneId, statePatch) => {
+        set((state) => {
+          const prev = state.liveCrowdStates[zoneId] ?? {
+            zoneId,
+            peopleCount: 0,
+            occupancyPercent: 0,
+            densityPerSqMeter: 0,
+            crowdLevel: "LOW",
+            trend: "STABLE",
+            confidencePercent: 90,
+            lastUpdated: "Just now",
+            source: "SIMULATED",
+          };
+          const nextLive = {
+            ...state.liveCrowdStates,
+            [zoneId]: { ...prev, ...statePatch },
+          };
+          return { liveCrowdStates: nextLive };
+        });
+        get().recalculatePredictions();
+      },
+
+      updateAllZoneCrowdStates: (newStates) => {
+        set((state) => ({
+          liveCrowdStates: {
+            ...state.liveCrowdStates,
+            ...newStates,
+          },
+        }));
+        get().recalculatePredictions();
+      },
 
       setEventConfig: (configId: string) => {
         const cfg = EVENT_CONFIGS[configId];
@@ -364,11 +977,20 @@ export const useSimulationStore = create<SimulationState>()(
         set((state) => ({ fieldTasks: [newTask, ...state.fieldTasks] }));
       },
 
-      reset: () =>
+      reset: () => {
+        const fg = createInitialCrowdFlowGraph();
+        const preds = computeAllZonePredictions(initialLiveCrowdStates, fg.zoneFlows).zonePredictions;
+        const evRouting = calculateEventAwareRoutes("south", "central", initialLiveCrowdStates, preds);
         set({
           phase: "normal",
           activeEventConfigId: "kumbh-mela",
           zoneSnapshots: zoneSnapshotsNormal,
+          liveCrowdStates: initialLiveCrowdStates,
+          flowGraph: fg,
+          predictions: preds,
+          eventRouting: evRouting,
+          activeJourney: initialActiveJourney,
+          activeItinerary: initialActiveItinerary,
           venueGates: initialGates,
           routes: initialRoutes,
           cameras: initialCameras,
@@ -377,7 +999,8 @@ export const useSimulationStore = create<SimulationState>()(
           activeInterventions: [],
           measurements: [],
           visitorTravelMinutes: 42,
-        }),
+        });
+      },
     }),
     {
       name: STORAGE_KEY,
@@ -386,6 +1009,12 @@ export const useSimulationStore = create<SimulationState>()(
         phase: state.phase,
         activeEventConfigId: state.activeEventConfigId,
         zoneSnapshots: state.zoneSnapshots,
+        liveCrowdStates: state.liveCrowdStates,
+        flowGraph: state.flowGraph,
+        predictions: state.predictions,
+        eventRouting: state.eventRouting,
+        activeJourney: state.activeJourney,
+        activeItinerary: state.activeItinerary,
         venueGates: state.venueGates,
         routes: state.routes,
         cameras: state.cameras,
@@ -397,12 +1026,24 @@ export const useSimulationStore = create<SimulationState>()(
       }),
       merge: (persisted, current) => {
         const p = (persisted as Partial<SimulationState> | undefined) ?? {};
+        const liveCrowdStates = p.liveCrowdStates ?? current.liveCrowdStates;
+        const flowGraph = p.flowGraph ?? current.flowGraph;
+        const predictions = p.predictions ?? computeAllZonePredictions(liveCrowdStates, flowGraph.zoneFlows).zonePredictions;
+        const eventRouting = p.eventRouting ?? calculateEventAwareRoutes("south", "central", liveCrowdStates, predictions);
+        const activeJourney = p.activeJourney ?? initialActiveJourney;
+        const activeItinerary = p.activeItinerary ?? initialActiveItinerary;
         return {
           ...current,
           ...p,
           phase: p.phase ?? current.phase,
           activeEventConfigId: p.activeEventConfigId ?? current.activeEventConfigId,
           zoneSnapshots: p.zoneSnapshots ?? current.zoneSnapshots,
+          liveCrowdStates,
+          flowGraph,
+          predictions,
+          eventRouting,
+          activeJourney,
+          activeItinerary,
           venueGates: p.venueGates ?? current.venueGates,
           routes: p.routes ?? current.routes,
           cameras: p.cameras ?? current.cameras,

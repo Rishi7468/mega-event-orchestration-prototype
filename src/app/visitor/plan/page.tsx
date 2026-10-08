@@ -56,6 +56,25 @@ export default function AccommodationIntelligencePage() {
       <div className="space-y-5">
         <TripContextBar origin={origin} destination={destination} />
 
+        {/* Multi-Stop Journey Optimizer Entry Point */}
+        <Card className="p-4 border-amber-500/40 bg-amber-950/20">
+          <div className="flex items-center justify-between gap-3 flex-wrap">
+            <div>
+              <p className="text-xs font-bold text-amber-400 uppercase tracking-wide">
+                ✨ Multi-Stop Itinerary Optimizer
+              </p>
+              <p className="text-sm font-semibold text-foreground">
+                Plan a crowd-aware sequence across multiple attractions
+              </p>
+            </div>
+            <Link href="/visitor/plan/itinerary">
+              <Button variant="primary" className="bg-amber-500 text-black hover:bg-amber-400 font-bold">
+                Build Itinerary
+              </Button>
+            </Link>
+          </div>
+        </Card>
+
         {/* "I need to go now" is a different question from "when should I go":
             it plans against conditions as they stand rather than a forecast,
             and the visitor should be able to see which one they're in. */}

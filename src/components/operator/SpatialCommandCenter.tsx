@@ -11,6 +11,7 @@ import {
 import type { SelectedMapObject } from "@/components/map/SpatialCommandMap";
 import { SelectedZonePanel } from "@/components/operator/SelectedZonePanel";
 import { WhatIfSimulationModal } from "@/components/operator/WhatIfSimulationModal";
+import { LiveOperatorRecommendations } from "@/components/operator/LiveOperatorRecommendations";
 import { EventAuthoringModal } from "@/components/operator/EventAuthoringModal";
 import { ScenarioControlPanel } from "@/components/operator/ScenarioControlPanel";
 import { primaryGeography } from "@/data/geography";
@@ -134,6 +135,9 @@ export function SpatialCommandCenter({
 
       {/* Scenario Control Simulation Bar */}
       <ScenarioControlPanel />
+
+      {/* PHASE 9 — LIVE OPERATOR RECOMMENDATIONS (DECISION SUPPORT LAYER) */}
+      <LiveOperatorRecommendations onRunWhatIf={handleOpenWhatIf} />
 
       {/* Hero Spatial Map + Selected Zone Command Drawer Grid */}
       <div className="relative grid grid-cols-1 gap-4 xl:grid-cols-[1fr_auto]">

@@ -8,6 +8,8 @@ import { utilizationPercent } from "@/data/transport";
 import { pressureToRisk } from "@/lib/recommendation";
 import type { Camera, TransportRoute, VenueGate, ZoneSnapshot, Incident } from "@/types";
 import type { OperationalZoneDefinition } from "@/store/eventAuthoringStore";
+import { useSimulationStore } from "@/store/simulationStore";
+import { MAHA_KUMBH_NODES, MAHA_KUMBH_EDGES } from "@/lib/graph/pedestrianGraph";
 
 export type SpatialLayerId =
   | "zones"
@@ -19,7 +21,8 @@ export type SpatialLayerId =
   | "field_teams"
   | "medical"
   | "corridors"
-  | "risk_overlay";
+  | "risk_overlay"
+  | "pedestrian_graph";
 
 export type SelectedMapObject =
   | { type: "zone"; id: string }
@@ -97,8 +100,7 @@ export function SpatialCommandMap({
 
   const [visibleLayers, setVisibleLayers] = useState<SpatialLayerId[]>([
     "zones",
-    "heatmap",
-    "flow_vectors",
+    "risk_overlay",
     "incidents",
     "gates",
     "cameras",
@@ -106,6 +108,11 @@ export function SpatialCommandMap({
     "medical",
     "corridors",
   ]);
+
+  const activeItinerary = useSimulationStore((state) => state.activeItinerary);
+  const activeRecommendationHighlight = useSimulationStore((state) => state.activeRecommendationHighlight);
+  const activeScenarioResult = useSimulationStore((state) => state.activeScenarioResult);
+  const appliedSimulatedInterventions = useSimulationStore((state) => state.appliedSimulatedInterventions);
 
   const toggleLayer = (layer: SpatialLayerId) => {
     setVisibleLayers((prev) =>
@@ -254,13 +261,138 @@ export function SpatialCommandMap({
       });
     }
 
+    // 2.2. PHASE 5 — EVENT-AWARE ROUTING CANDIDATES OVERLAY
+    const eventRouting = useSimulationStore.getState().eventRouting;
+
+    if (isVisible("corridors") || isVisible("zones")) {
+      eventRouting?.candidates?.forEach((cand) => {
+        const isRec = cand.status === "recommended";
+        const strokeColor = isRec ? "#10b981" : cand.status === "congested" ? "#f43f5e" : "#f59e0b";
+        const weight = isRec ? 6 : 4;
+        const opacity = isRec ? 0.95 : 0.65;
+
+        const routePoly = L.polyline(cand.waypoints, {
+          color: strokeColor,
+          weight,
+          opacity,
+          dashArray: isRec ? undefined : "8 6",
+        }).addTo(overlay);
+
+        routePoly.bindTooltip(
+          `<b>${cand.name}</b><br/>` +
+          `Status: <b style="color:${strokeColor};">${cand.status.toUpperCase()}</b><br/>` +
+          `ETA: <b>${cand.effectiveEtaMinutes} min</b> (${cand.distanceMeters}m)<br/>` +
+          `Risk: Current ${cand.dominantCrowdLevel}, Forecast ${cand.predictedRiskLevel}<br/>` +
+          `<i style="font-size:11px;color:#94a3b8;">${cand.explanation}</i>`,
+          { direction: "top", offset: [0, -6] }
+        );
+
+        if (isRec && cand.waypoints.length > 2) {
+          const midPoint = cand.waypoints[Math.floor(cand.waypoints.length / 2)];
+          const labelHtml = `
+            <div class="cursor-pointer transition-transform hover:scale-110" style="
+              display: inline-flex;
+              align-items: center;
+              gap: 5px;
+              padding: 2px 8px;
+              border-radius: 999px;
+              border: 1.5px solid #10b981;
+              background: rgba(6, 78, 59, 0.95);
+              box-shadow: 0 4px 12px rgba(0,0,0,0.6);
+            ">
+              <span style="font-size: 10px; font-weight: 900; color: #34d399;">⚡ RECOMMENDED ROUTE</span>
+              <span style="font-family: monospace; font-size: 10px; font-weight: 800; color: #ffffff;">${cand.effectiveEtaMinutes}m (${cand.distanceMeters}m)</span>
+            </div>
+          `;
+
+          L.marker(midPoint, {
+            icon: createCustomLabelIcon(labelHtml),
+          }).addTo(overlay);
+        }
+      });
+    }
+
+    // 2.5. PHASE 2 — CROWD FLOW GRAPH ACTIVE FLOW VECTORS
+    const flowGraph = useSimulationStore.getState().flowGraph;
+
+    if (isVisible("flow_vectors") || isVisible("zones")) {
+      flowGraph?.edges.forEach((edge) => {
+        if (!edge.active || edge.peoplePerMinute <= 0) return;
+
+        const sourceGeo = geography.zones.find((z) => z.zoneId === edge.sourceZoneId);
+        const targetGeo = geography.zones.find((z) => z.zoneId === edge.targetZoneId);
+        if (!sourceGeo || !targetGeo) return;
+
+        const startPt = sourceGeo.center;
+        const endPt = targetGeo.center;
+
+        const strokeColor = edge.trend === "INCREASING" ? "#f43f5e" : edge.trend === "DECREASING" ? "#10b981" : "#3b82f6";
+        const strokeWeight = Math.max(3, Math.min(9, Math.round(edge.peoplePerMinute / 50)));
+
+        // Animated flow polyline
+        const flowPoly = L.polyline([startPt, endPt], {
+          color: strokeColor,
+          weight: strokeWeight,
+          opacity: 0.85,
+          dashArray: "10 8",
+        }).addTo(overlay);
+
+        flowPoly.bindTooltip(
+          `<b>${edge.sourceZoneId.toUpperCase()} → ${edge.targetZoneId.toUpperCase()} Flow Vector</b><br/>` +
+          `Flow Rate: <b style="color:${strokeColor};">${edge.peoplePerMinute}/min</b> (${edge.trend})<br/>` +
+          `Confidence: ${edge.confidencePercent}% · Derived from real-time movement`,
+          { direction: "top", offset: [0, -6] }
+        );
+
+        // Calculate midpoint for flow direction marker
+        const midLat = (startPt[0] + endPt[0]) / 2;
+        const midLng = (startPt[1] + endPt[1]) / 2;
+
+        const flowChipHtml = `
+          <div class="cursor-pointer transition-transform hover:scale-110" style="
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+            padding: 2px 7px;
+            border-radius: 999px;
+            border: 1.5px solid ${strokeColor};
+            background: rgba(10, 14, 23, 0.94);
+            box-shadow: 0 4px 12px rgba(0,0,0,0.6);
+            backdrop-filter: blur(6px);
+          ">
+            <span style="font-size: 11px; font-weight: 900; color: ${strokeColor};">→</span>
+            <span style="font-family: monospace; font-size: 10px; font-weight: 800; color: #f4f4f5;">${edge.peoplePerMinute}/m</span>
+          </div>
+        `;
+
+        const midMarker = L.marker([midLat, midLng], {
+          icon: createCustomLabelIcon(flowChipHtml),
+        }).addTo(overlay);
+
+        midMarker.bindTooltip(
+          `<b>${edge.sourceZoneId.toUpperCase()} → ${edge.targetZoneId.toUpperCase()} Movement Vector</b><br/>` +
+          `Rate: ${edge.peoplePerMinute} visitors/minute`,
+          { direction: "top", offset: [0, -10] }
+        );
+      });
+    }
+
     // 3. OPERATIONAL ZONES POLYGONS & LABELS
+    const liveCrowdStates = useSimulationStore.getState().liveCrowdStates;
+    const predictions = useSimulationStore.getState().predictions;
+
     if (isVisible("zones")) {
       geography.zones.forEach((geoZone) => {
         const authoringZone = zones.find((z) => z.id === geoZone.zoneId);
         const snapshot = snapshots.find((s) => s.zoneId === geoZone.zoneId);
+        const liveState = liveCrowdStates[geoZone.zoneId];
+        const prediction = predictions[geoZone.zoneId];
 
-        const pressure = snapshot?.crowdPressure ?? authoringZone?.currentPopulation ?? 50;
+        const pressure = liveState?.occupancyPercent ?? snapshot?.crowdPressure ?? authoringZone?.currentPopulation ?? 50;
+        const crowdLevel = liveState?.crowdLevel ?? (pressure >= 85 ? "CRITICAL" : pressure >= 70 ? "HIGH" : pressure >= 45 ? "MODERATE" : "LOW");
+        const trendArrow = liveState?.trend === "INCREASING" ? "↑" : liveState?.trend === "DECREASING" ? "↓" : "→";
+        const sourceBadge = liveState?.source === "CV" ? " [CV]" : "";
+
         const riskKey = pressureToRisk(pressure);
         const color = RISK_COLORS[riskKey];
         const isSelected = selectedObjectId === geoZone.zoneId;
@@ -285,28 +417,58 @@ export function SpatialCommandMap({
         const zoneName = authoringZone?.name ?? geoZone.zoneId;
         const shortName = zoneName.replace(" Zone", "");
         const code = authoringZone?.code ?? geoZone.zoneId.toUpperCase();
+        const headcount = liveState?.peopleCount ? `${liveState.peopleCount.toLocaleString()} p` : `${pressure}%`;
+
+        const forecastPill = prediction && (prediction.predictedCrowdLevel === "CRITICAL" || prediction.timeToCriticalMinutes !== null)
+          ? `<span style="font-size: 9px; font-weight: 800; color: #f43f5e; background: rgba(244, 63, 94, 0.15); border: 1px solid rgba(244,63,94,0.4); padding: 1px 5px; border-radius: 4px;">⚡ 🔴 ${prediction.timeToCriticalMinutes ? `~${prediction.timeToCriticalMinutes}m to CRITICAL` : 'CRITICAL FORECAST'}</span>`
+          : prediction && prediction.predictedCrowdLevel === "HIGH"
+          ? `<span style="font-size: 9px; font-weight: 800; color: #fbbf24; background: rgba(251, 191, 36, 0.15); border: 1px solid rgba(251,191,36,0.4); padding: 1px 5px; border-radius: 4px;">⚡ 🟡 HIGH FORECAST</span>`
+          : '';
 
         const chipHtml = `
           <div class="cursor-pointer transition-all hover:scale-105" style="
             display: inline-flex;
+            flex-direction: column;
             align-items: center;
-            gap: 6px;
-            padding: 3px 9px;
-            border-radius: 999px;
-            border: 1.5px solid ${color};
-            background: rgba(12, 14, 18, 0.92);
-            box-shadow: 0 4px 12px rgba(0,0,0,0.5);
-            backdrop-filter: blur(8px);
+            gap: 2px;
           ">
-            <span style="font-family: monospace; font-size: 10px; font-weight: 800; color: #3b82f6;">${code}</span>
-            <span style="font-size: 11px; font-weight: 700; color: #f4f4f5;">${shortName}</span>
-            <span style="font-size: 11px; font-weight: 800; color: ${color};">${pressure}%</span>
+            <div style="
+              display: inline-flex;
+              align-items: center;
+              gap: 6px;
+              padding: 3px 9px;
+              border-radius: 999px;
+              border: 1.5px solid ${color};
+              background: rgba(12, 14, 18, 0.92);
+              box-shadow: 0 4px 12px rgba(0,0,0,0.5);
+              backdrop-filter: blur(8px);
+            ">
+              <span style="font-family: monospace; font-size: 10px; font-weight: 800; color: #3b82f6;">${code}</span>
+              <span style="font-size: 11px; font-weight: 700; color: #f4f4f5;">${shortName}</span>
+              <span style="font-size: 10px; font-weight: 800; color: ${color};">${crowdLevel} ${trendArrow}</span>
+              <span style="font-size: 11px; font-weight: 800; color: ${color};">${headcount}${sourceBadge}</span>
+            </div>
+            ${forecastPill}
           </div>
         `;
 
         const labelMarker = L.marker(geoZone.center, {
           icon: createCustomLabelIcon(chipHtml),
         }).addTo(overlay);
+
+        const forecastTooltip = prediction
+          ? `<br/>Forecast (+15m): <b style="color:${prediction.predictedCrowdLevel === 'CRITICAL' ? '#f43f5e' : '#3b82f6'}">${prediction.predictedCrowdLevel} (${prediction.predictedOccupancyPercent}%)</b><br/>` +
+            `Time to Critical: <b>${prediction.timeToCriticalMinutes !== null ? `~${prediction.timeToCriticalMinutes} min` : 'Not predicted'}</b>`
+          : '';
+
+        labelMarker.bindTooltip(
+          `<b>${zoneName} (${code})</b><br/>` +
+          `Live State: <span style="color:${color};font-weight:bold;">${crowdLevel}</span> (${trendArrow} ${liveState?.trend || 'STABLE'})<br/>` +
+          `Headcount: ${liveState?.peopleCount ? liveState.peopleCount.toLocaleString() : 'N/A'} (${pressure}% capacity)<br/>` +
+          `Confidence: ${liveState?.confidencePercent || 92}% · Source: ${liveState?.source || 'SIMULATED'}` +
+          forecastTooltip,
+          { direction: "top", offset: [0, -14] }
+        );
 
         labelMarker.on("click", () => {
           if (onSelectObject) {
@@ -368,6 +530,40 @@ export function SpatialCommandMap({
 
         L.marker(currentPos, {
           icon: createCustomLabelIcon(flowParticleHtml),
+          interactive: false,
+        }).addTo(overlay);
+      });
+    }
+
+    // 5.5. PEDESTRIAN GRAPH OVERLAY (NODE & EDGE ROUTING DEBUGGING)
+    if (isVisible("pedestrian_graph")) {
+      // Draw graph edges
+      MAHA_KUMBH_EDGES.forEach((edge) => {
+        L.polyline(edge.geometry, {
+          color: "#a855f7",
+          weight: 3,
+          dashArray: "6, 6",
+          opacity: 0.8,
+        }).addTo(overlay);
+      });
+
+      // Draw graph nodes
+      MAHA_KUMBH_NODES.forEach((node) => {
+        const nodeIconHtml = `
+          <div style="
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            width: 14px;
+            height: 14px;
+            border-radius: 50%;
+            background: #a855f7;
+            border: 2px solid #ffffff;
+            box-shadow: 0 0 10px rgba(168, 85, 247, 0.8);
+          "></div>
+        `;
+        L.marker(node.coordinates, {
+          icon: createCustomLabelIcon(nodeIconHtml),
           interactive: false,
         }).addTo(overlay);
       });
@@ -570,6 +766,166 @@ export function SpatialCommandMap({
         });
       }
     }
+
+    // 10. MULTI-STOP ITINERARY SEQUENCE OVERLAY
+    if (activeItinerary?.active && activeItinerary.result?.stops.length) {
+      const stops = activeItinerary.result.stops;
+      stops.forEach((stop) => {
+        // Draw sequence badge at landmark coordinates
+        const badgeHtml = `
+          <div style="
+            display: flex;
+            align-items: center;
+            gap: 4px;
+            padding: 3px 8px;
+            border-radius: 999px;
+            background: #f59e0b;
+            color: #000000;
+            border: 2px solid #ffffff;
+            font-size: 11px;
+            font-weight: 800;
+            box-shadow: 0 4px 14px rgba(245, 158, 11, 0.6);
+            transform: translate(-50%, -50%);
+            white-space: nowrap;
+          ">
+            <span style="background: #000; color: #fff; width: 16px; height: 16px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 10px;">${stop.stepNumber}</span>
+            <span>${stop.name}</span>
+          </div>
+        `;
+        L.marker(stop.coordinates, {
+          icon: createCustomLabelIcon(badgeHtml),
+          zIndexOffset: 1000,
+        }).addTo(overlay);
+
+        // Draw dashed leg polyline connecting consecutive stops
+        if (stop.legFromPrevious && stop.legFromPrevious.waypoints.length > 0) {
+          L.polyline(stop.legFromPrevious.waypoints, {
+            color: "#f59e0b",
+            weight: 4,
+            dashArray: "8, 8",
+            opacity: 0.9,
+          }).addTo(overlay);
+        }
+      });
+    }
+
+    // 11. OPERATOR RECOMMENDATION SPATIAL HIGHLIGHT OVERLAY
+    if (activeRecommendationHighlight) {
+      const { affectedZoneId, affectedEdgeId, alternativeEdgeId } = activeRecommendationHighlight;
+
+      // Highlight affected zone polygon
+      if (affectedZoneId) {
+        const zoneGeo = geography.zones.find((z) => z.zoneId === affectedZoneId);
+        if (zoneGeo) {
+          L.polygon(zoneGeo.boundary, {
+            color: "#ef4444",
+            fillColor: "#ef4444",
+            fillOpacity: 0.25,
+            weight: 4,
+            dashArray: "8, 8",
+          }).addTo(overlay);
+        }
+      }
+
+      // Highlight affected edge (red danger corridor)
+      if (affectedEdgeId) {
+        const affEdge = MAHA_KUMBH_EDGES.find((e) => e.id === affectedEdgeId);
+        if (affEdge) {
+          L.polyline(affEdge.geometry, {
+            color: "#ef4444",
+            weight: 6,
+            opacity: 0.9,
+          }).addTo(overlay);
+
+          const midPt = affEdge.geometry[Math.floor(affEdge.geometry.length / 2)];
+          const dangerLabelHtml = `
+            <div style="
+              padding: 4px 8px;
+              border-radius: 6px;
+              background: rgba(239, 68, 68, 0.95);
+              color: #ffffff;
+              font-size: 10px;
+              font-weight: 800;
+              box-shadow: 0 0 12px rgba(239, 68, 68, 0.8);
+              transform: translate(-50%, -50%);
+            ">
+              ⚠️ CONGESTED CORRIDOR
+            </div>
+          `;
+          L.marker(midPt, {
+            icon: createCustomLabelIcon(dangerLabelHtml),
+            interactive: false,
+          }).addTo(overlay);
+        }
+      }
+
+      // Highlight alternative recommended edge (green diversion corridor)
+      if (alternativeEdgeId) {
+        const altEdge = MAHA_KUMBH_EDGES.find((e) => e.id === alternativeEdgeId);
+        if (altEdge) {
+          L.polyline(altEdge.geometry, {
+            color: "#10b981",
+            weight: 6,
+            opacity: 0.95,
+          }).addTo(overlay);
+
+          const altMidPt = altEdge.geometry[Math.floor(altEdge.geometry.length / 2)];
+          const altLabelHtml = `
+            <div style="
+              padding: 4px 8px;
+              border-radius: 6px;
+              background: rgba(16, 185, 129, 0.95);
+              color: #ffffff;
+              font-size: 10px;
+              font-weight: 800;
+              box-shadow: 0 0 12px rgba(16, 185, 129, 0.8);
+              transform: translate(-50%, -50%);
+            ">
+              🔄 RECOMMENDED DIVERSION PATH
+            </div>
+          `;
+          L.marker(altMidPt, {
+            icon: createCustomLabelIcon(altLabelHtml),
+            interactive: false,
+          }).addTo(overlay);
+        }
+      }
+    }
+
+    // 12. ACTIVE SCENARIO SIMULATION SPATIAL OVERLAY
+    if (activeScenarioResult) {
+      const primaryZoneId = activeScenarioResult.primaryZoneImpact.zoneId;
+      const primaryZoneGeo = geography.zones.find((z) => z.zoneId === primaryZoneId);
+      if (primaryZoneGeo) {
+        L.polygon(primaryZoneGeo.boundary, {
+          color: "#f59e0b",
+          fillColor: "#f59e0b",
+          fillOpacity: 0.2,
+          weight: 4,
+          dashArray: "6, 6",
+        }).addTo(overlay);
+      }
+
+      const badgeHtml = `
+        <div style="
+          padding: 6px 10px;
+          border-radius: 8px;
+          background: rgba(245, 158, 11, 0.95);
+          color: #000000;
+          font-size: 11px;
+          font-weight: 800;
+          box-shadow: 0 0 16px rgba(245, 158, 11, 0.9);
+          transform: translate(-50%, -50%);
+          border: 1px solid #ffffff;
+        ">
+          🧪 SIMULATED INTERVENTION: ${activeScenarioResult.primaryZoneImpact.currentOccupancyPercent}% → ${activeScenarioResult.primaryZoneImpact.projectedOccupancyPercent}%
+        </div>
+      `;
+      L.marker(geography.center, {
+        icon: createCustomLabelIcon(badgeHtml),
+        interactive: false,
+      }).addTo(overlay);
+    }
   }, [
     geography,
     zones,
@@ -581,6 +937,10 @@ export function SpatialCommandMap({
     visibleLayers,
     selectedObjectId,
     flowProgress,
+    activeItinerary,
+    activeRecommendationHighlight,
+    activeScenarioResult,
+    appliedSimulatedInterventions,
     onSelectObject,
   ]);
 
