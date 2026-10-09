@@ -1,7 +1,7 @@
 "use client";
 
 import { useEventAuthoringStore } from "@/store/eventAuthoringStore";
-import { Trash2, Copy, RefreshCw, X, MapPin, Navigation, Layers, Paintbrush, Sparkles } from "lucide-react";
+import { Trash2, Copy, RefreshCw, X, MapPin, Navigation, Layers, Paintbrush, Sparkles, Compass } from "lucide-react";
 
 type ObjectInspectorPanelProps = {
   selectedObjectType: "asset" | "zone" | "route" | "paint" | "anchor" | "region" | null;
@@ -170,6 +170,18 @@ export function ObjectInspectorPanel({
               />
             </div>
           </div>
+
+          {/* STREET-LEVEL GEOGRAPHIC INSPECTION ACTION */}
+          <a
+            href={`https://www.google.com/maps/@?api=1&map_action=pano&viewpoint=${targetAsset.lat},${targetAsset.lng}`}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="w-full flex items-center justify-center gap-1.5 py-1.5 rounded-xl border border-cyan-500/40 bg-cyan-500/10 text-cyan-300 font-bold hover:bg-cyan-500/20 transition-all text-[11px]"
+            title="Inspect ground-truth physical surroundings in Google Street View"
+          >
+            <Compass className="h-3.5 w-3.5 text-cyan-400" />
+            <span>INSPECT LOCATION IN STREET VIEW ↗</span>
+          </a>
 
           <div className="grid grid-cols-2 gap-2">
             <div>

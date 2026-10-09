@@ -57,19 +57,22 @@ export default function AccommodationIntelligencePage() {
         <TripContextBar origin={origin} destination={destination} />
 
         {/* Multi-Stop Journey Optimizer Entry Point */}
-        <Card className="p-4 border-amber-500/40 bg-amber-950/20">
+        <Card className="p-4 border-accent/20">
           <div className="flex items-center justify-between gap-3 flex-wrap">
-            <div>
-              <p className="text-xs font-bold text-amber-400 uppercase tracking-wide">
-                ✨ Multi-Stop Itinerary Optimizer
-              </p>
-              <p className="text-sm font-semibold text-foreground">
+            <div className="min-w-0 flex-1">
+              <div className="flex items-center gap-1.5">
+                <Sparkles className="h-4 w-4 text-foreground" />
+                <p className="text-xs font-semibold text-foreground-muted">
+                  Multi-Stop Itinerary Optimizer
+                </p>
+              </div>
+              <p className="mt-1 text-sm font-semibold text-foreground">
                 Plan a crowd-aware sequence across multiple attractions
               </p>
             </div>
             <Link href="/visitor/plan/itinerary">
-              <Button variant="primary" className="bg-amber-500 text-black hover:bg-amber-400 font-bold">
-                Build Itinerary
+              <Button variant="primary">
+                Build itinerary
               </Button>
             </Link>
           </div>

@@ -198,9 +198,6 @@ export function CompactToolbar({
     pastHistory,
     futureHistory,
     generateOperationalZones,
-    addRectangleZone,
-    addCircleZone,
-    centerCoordinates,
     selectedObjectId,
     selectedObjectType,
     deleteSelectedObject,
@@ -236,7 +233,7 @@ export function CompactToolbar({
             onClick={() => setActiveTool("select")}
             className={`flex items-center gap-1.5 rounded-xl border px-3 py-1.5 text-xs font-bold transition-all ${
               activeTool === "select"
-                ? "border-accent bg-accent text-accent-foreground shadow-xs"
+                ? "border-indigo-400 bg-indigo-600 text-white font-black shadow-sm ring-2 ring-indigo-400/50"
                 : "border-border bg-surface-muted/50 text-foreground hover:bg-surface-muted"
             }`}
             title="Select & Inspect Objects on Canvas"
@@ -249,7 +246,7 @@ export function CompactToolbar({
             onClick={toggleKeepToolActive}
             className={`flex items-center gap-1 rounded-xl border px-2.5 py-1.5 text-[11px] font-bold transition-all ${
               keepToolActive
-                ? "border-amber-500 bg-amber-500/20 text-amber-300 shadow-xs"
+                ? "border-amber-400 bg-amber-500/20 text-amber-300 shadow-xs ring-1 ring-amber-400/40"
                 : "border-border bg-surface-muted/30 text-foreground-muted hover:bg-surface-muted"
             }`}
             title="Keep Tool Active after placing objects (Sticky Creation Mode)"
@@ -263,7 +260,7 @@ export function CompactToolbar({
             onClick={() => setActiveTool("region")}
             className={`flex items-center gap-1.5 rounded-xl border px-3 py-1.5 text-xs font-bold transition-all ${
               activeTool === "region"
-                ? "border-accent bg-accent text-accent-foreground shadow-xs"
+                ? "border-indigo-400 bg-indigo-600 text-white font-black shadow-sm ring-2 ring-indigo-400/50"
                 : "border-border bg-surface-muted/50 text-foreground hover:bg-surface-muted"
             }`}
             title="Define Authoritative Spatial Region Boundary"
@@ -279,7 +276,7 @@ export function CompactToolbar({
               !isRegionConfirmed
                 ? "border-border/40 bg-surface-muted/20 text-foreground-muted/40 cursor-not-allowed"
                 : activeTool === "paint"
-                ? "border-cyan-500 bg-cyan-500 text-black shadow-xs font-black"
+                ? "border-cyan-400 bg-cyan-400 text-slate-950 shadow-sm font-black ring-2 ring-cyan-400/50"
                 : "border-border bg-surface-muted/50 text-foreground hover:bg-surface-muted"
             }`}
             title={isRegionConfirmed ? "Paint Spatial Areas (Crowd, Queue, Medical, Emergency, VIP)" : "Define and confirm event region first."}
@@ -296,7 +293,7 @@ export function CompactToolbar({
               !isRegionConfirmed
                 ? "border-border/40 bg-surface-muted/20 text-foreground-muted/40 cursor-not-allowed"
                 : activeTool === "zone"
-                ? "border-accent bg-accent text-accent-foreground shadow-xs"
+                ? "border-indigo-400 bg-indigo-600 text-white font-black shadow-sm ring-2 ring-indigo-400/50"
                 : "border-border bg-surface-muted/50 text-foreground hover:bg-surface-muted"
             }`}
             title={isRegionConfirmed ? "Operational Zones & Partitioning" : "Define and confirm event region first."}
@@ -313,7 +310,7 @@ export function CompactToolbar({
               !isRegionConfirmed
                 ? "border-border/40 bg-surface-muted/20 text-foreground-muted/40 cursor-not-allowed"
                 : activeTool === "anchor"
-                ? "border-emerald-500 bg-emerald-500 text-black shadow-xs font-black"
+                ? "border-emerald-400 bg-emerald-400 text-slate-950 font-black shadow-sm ring-2 ring-emerald-400/50"
                 : "border-border bg-surface-muted/50 text-foreground hover:bg-surface-muted"
             }`}
             title={isRegionConfirmed ? "Place Operational Anchors (Gates, Ingress, Checkpoints, Medical Bases)" : "Define and confirm event region first."}
@@ -330,7 +327,7 @@ export function CompactToolbar({
               !isRegionConfirmed
                 ? "border-border/40 bg-surface-muted/20 text-foreground-muted/40 cursor-not-allowed"
                 : activeTool === "route"
-                ? "border-accent bg-accent text-accent-foreground shadow-xs"
+                ? "border-indigo-400 bg-indigo-600 text-white font-black shadow-sm ring-2 ring-indigo-400/50"
                 : "border-border bg-surface-muted/50 text-foreground hover:bg-surface-muted"
             }`}
             title={isRegionConfirmed ? "OSRM Network & Event Corridors" : "Define and confirm event region first."}
@@ -347,7 +344,7 @@ export function CompactToolbar({
               !isRegionConfirmed
                 ? "border-border/40 bg-surface-muted/20 text-foreground-muted/40 cursor-not-allowed"
                 : activeTool === "resource"
-                ? "border-accent bg-accent text-accent-foreground shadow-xs"
+                ? "border-indigo-400 bg-indigo-600 text-white font-black shadow-sm ring-2 ring-indigo-400/50"
                 : "border-border bg-surface-muted/50 text-foreground hover:bg-surface-muted"
             }`}
             title={isRegionConfirmed ? "Tactical Resource Placement" : "Define and confirm event region first."}
@@ -364,7 +361,7 @@ export function CompactToolbar({
               !isRegionConfirmed
                 ? "border-border/40 bg-surface-muted/20 text-foreground-muted/40 cursor-not-allowed"
                 : activeTool === "measure"
-                ? "border-amber-500 bg-amber-500 text-black font-extrabold shadow-xs"
+                ? "border-amber-400 bg-amber-400 text-slate-950 font-black shadow-sm ring-2 ring-amber-400/50"
                 : "border-border bg-surface-muted/50 text-foreground hover:bg-surface-muted"
             }`}
             title={isRegionConfirmed ? "Live Measurement Tool" : "Define and confirm event region first."}

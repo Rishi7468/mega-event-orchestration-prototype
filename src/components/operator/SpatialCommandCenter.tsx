@@ -79,7 +79,7 @@ export function SpatialCommandCenter({
     if (!isDuplicate) {
       addFieldTask({
         title: "Promote Gate B & Redirect Inflow",
-        assignedStaff: "Officer Ramesh (Sector 1)",
+        assignedStaff: "Field Response Unit 01 (Sector 1)",
         zoneId: "central",
         gateId: "gate-b",
         type: "gate_control",

@@ -2,6 +2,13 @@ import * as cocoSsd from "@tensorflow-models/coco-ssd";
 import * as tf from "@tensorflow/tfjs";
 import type { RawVisionTelemetry } from "@/lib/adapters/crowdDataProvider";
 
+export const PERCEPTION_CONFIG = {
+  PERCEPTION_FPS: 3,
+  FRAME_INTERVAL_MS: 300,
+  MAX_CONCURRENT_INFERENCES: 1,
+  MODEL_VARIANT: "lite_mobilenet_v2" as const,
+};
+
 export type DetectedPerson = {
   bbox: [number, number, number, number]; // [x, y, w, h]
   center: [number, number]; // [x, y]
@@ -18,14 +25,37 @@ export type RealtimeTrack = {
   history: Array<{ x: number; y: number; timestamp: number }>;
 };
 
+export type CameraPerceptionStatus = {
+  cameraId: string;
+  cameraName: string;
+  configured: boolean;
+  videoAvailable: boolean;
+  videoPlaying: boolean;
+  perceptionActive: boolean;
+  analyzing: boolean;
+  lastFrameAt: number | null;
+  detectionCount: number;
+  trackingCount: number;
+  confidence: number;
+  fps: number;
+  source: string;
+  mappedEdges: string[];
+};
+
 /**
  * Centroid & Intersection-Over-Union (IOU) tracker for persisting anonymous track IDs across video frames.
+ * Camera-scoped track prefixes prevent track ID collisions across multiple concurrent cameras.
  */
 export class CentroidTracker {
   private nextTrackNum = 101;
   private tracks: Map<string, RealtimeTrack> = new Map();
   private maxDisappearedFrames = 10;
   private trackDisappeared: Map<string, number> = new Map();
+  private cameraPrefix: string;
+
+  constructor(cameraPrefix = "trk_real_") {
+    this.cameraPrefix = cameraPrefix;
+  }
 
   public update(detections: DetectedPerson[], timestamp: number): RealtimeTrack[] {
     const matchedTrackIds = new Set<string>();
@@ -57,8 +87,8 @@ export class CentroidTracker {
         if (track.history.length > 15) track.history.shift();
         this.trackDisappeared.set(bestTrackId, 0);
       } else {
-        // Create new track ID
-        const newId = `trk_real_${this.nextTrackNum++}`;
+        // Create camera-isolated track ID (e.g. cam07_trk_101, cam03_trk_101)
+        const newId = `${this.cameraPrefix}${this.nextTrackNum++}`;
         matchedTrackIds.add(newId);
         const newTrack: RealtimeTrack = {
           trackId: newId,
@@ -105,10 +135,17 @@ export class CentroidTracker {
  */
 export class VideoPerceptionEngine {
   private model: cocoSsd.ObjectDetection | null = null;
-  private tracker = new CentroidTracker();
+  private trackers: Map<string, CentroidTracker> = new Map();
   private isLoading = false;
-  private isProcessing = false;
-  private intervalId: number | null = null;
+  private isProcessingFrame = false;
+
+  private getTracker(cameraId: string): CentroidTracker {
+    const cleanId = cameraId.replace(/[^a-zA-Z0-9]/g, "");
+    if (!this.trackers.has(cameraId)) {
+      this.trackers.set(cameraId, new CentroidTracker(`${cleanId}_trk_`));
+    }
+    return this.trackers.get(cameraId)!;
+  }
 
   public async initializeModel(): Promise<boolean> {
     if (this.model) return true;
@@ -118,7 +155,7 @@ export class VideoPerceptionEngine {
     try {
       await tf.ready();
       // Load COCO-SSD model (lite model optimized for browser performance)
-      this.model = await cocoSsd.load({ base: "lite_mobilenet_v2" });
+      this.model = await cocoSsd.load({ base: PERCEPTION_CONFIG.MODEL_VARIANT });
       this.isLoading = false;
       return true;
     } catch (err) {
@@ -133,7 +170,8 @@ export class VideoPerceptionEngine {
   }
 
   /**
-   * Processes a single HTMLVideoElement frame, running object detection and centroid tracking.
+   * Processes a single HTMLVideoElement frame, running object detection and camera-isolated tracking.
+   * Uses a thread lock to ensure MAX_CONCURRENT_INFERENCES: 1 safety across multi-camera setups.
    */
   public async processVideoFrame(
     videoEl: HTMLVideoElement,
@@ -144,6 +182,7 @@ export class VideoPerceptionEngine {
     tracks: RealtimeTrack[];
     detections: DetectedPerson[];
     processingTimeMs: number;
+    skipped: boolean;
   }> {
     const startTime = performance.now();
 
@@ -151,10 +190,35 @@ export class VideoPerceptionEngine {
       await this.initializeModel();
     }
 
+    const tracker = this.getTracker(cameraId);
+
+    // Performance safety lock: skip TF.js detection tick if an inference is currently executing
+    if (this.isProcessingFrame) {
+      const activeTracks = tracker.getActiveTracks();
+      return {
+        rawTelemetry: {
+          cameraId,
+          zoneId,
+          personCount: activeTracks.length,
+          densityPerSqMeter: Math.round((activeTracks.length / 200) * 100) / 100,
+          timestamp: new Date().toLocaleTimeString(),
+          model: "yolo11",
+          confidencePercent: 92,
+          trackIds: activeTracks.map((t) => t.trackId),
+          source: "CV",
+        },
+        tracks: activeTracks,
+        detections: [],
+        processingTimeMs: 0,
+        skipped: true,
+      };
+    }
+
+    this.isProcessingFrame = true;
     let detections: DetectedPerson[] = [];
 
-    if (this.model && videoEl.readyState >= 2 && !videoEl.paused) {
-      try {
+    try {
+      if (this.model && videoEl.readyState >= 2 && !videoEl.paused) {
         const predictions = await this.model.detect(videoEl, 10, 0.25);
         detections = predictions
           .filter((p) => p.class === "person")
@@ -163,13 +227,15 @@ export class VideoPerceptionEngine {
             center: [p.bbox[0] + p.bbox[2] / 2, p.bbox[1] + p.bbox[3] / 2] as [number, number],
             confidence: Math.round(p.score * 100),
           }));
-      } catch (err) {
-        console.warn("Frame detection error:", err);
       }
+    } catch (err) {
+      console.warn(`Frame detection error on camera ${cameraId}:`, err);
+    } finally {
+      this.isProcessingFrame = false;
     }
 
     const timestamp = Date.now();
-    const activeTracks = this.tracker.update(detections, timestamp);
+    const activeTracks = tracker.update(detections, timestamp);
     const personCount = activeTracks.length;
     const processingTimeMs = Math.round(performance.now() - startTime);
 
@@ -195,11 +261,16 @@ export class VideoPerceptionEngine {
       tracks: activeTracks,
       detections,
       processingTimeMs,
+      skipped: false,
     };
   }
 
-  public resetTracker() {
-    this.tracker.reset();
+  public resetTracker(cameraId?: string) {
+    if (cameraId) {
+      this.trackers.get(cameraId)?.reset();
+    } else {
+      this.trackers.forEach((tracker) => tracker.reset());
+    }
   }
 }
 

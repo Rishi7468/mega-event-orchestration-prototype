@@ -67,7 +67,7 @@ const initialFieldTasks: FieldTask[] = [
   {
     id: "task-01",
     title: "Deploy Crowd Barriers at Gate A",
-    assignedStaff: "Officer Ramesh (Sector 1)",
+    assignedStaff: "Field Response Unit 01 (Sector 1)",
     zoneId: "central",
     gateId: "gate-a",
     type: "gate_control",
@@ -79,7 +79,7 @@ const initialFieldTasks: FieldTask[] = [
   {
     id: "task-02",
     title: "Direct Visitors to North Transit Line",
-    assignedStaff: "Officer Priya (Sector 2)",
+    assignedStaff: "Field Response Unit 02 (Sector 2)",
     zoneId: "north",
     type: "crowd_direction",
     priority: "medium",

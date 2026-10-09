@@ -105,17 +105,17 @@ export default function LiveJourneyPage() {
       />
 
       <div className="space-y-4">
-        {/* PHASE 6: DYNAMIC LIVE REROUTE NOTIFICATION CARD */}
+        {/* DYNAMIC LIVE REROUTE NOTIFICATION CARD */}
         {activeJourney?.rerouteAvailable && activeJourney.pendingAlternativeRoute ? (
-          <Card className="border-amber-500/40 bg-amber-950/20 p-4 shadow-lg">
+          <Card className="border-risk-medium/30 bg-risk-medium-bg p-4 animate-fade-up">
             <div className="flex items-start gap-3">
-              <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-amber-500/20 text-amber-400">
+              <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-risk-medium/15 text-risk-medium">
                 <Navigation className="h-5 w-5" />
               </div>
               <div className="min-w-0 flex-1">
                 <div className="flex items-center justify-between gap-2">
-                  <span className="text-xs font-bold uppercase tracking-wider text-amber-400">
-                    ⚡ Route Update Recommended
+                  <span className="text-xs font-semibold text-risk-medium">
+                    Route Update Recommended
                   </span>
                   <Chip tone="warning">Surge Detected</Chip>
                 </div>
@@ -123,19 +123,19 @@ export default function LiveJourneyPage() {
                   {activeJourney.rerouteReason}
                 </p>
                 <p className="mt-1 text-xs leading-relaxed text-foreground-muted">
-                  Bypass Route: <span className="font-bold text-foreground">{activeJourney.pendingAlternativeRoute.name}</span> ({activeJourney.pendingAlternativeRoute.effectiveEtaMinutes} min · {activeJourney.pendingAlternativeRoute.distanceMeters}m). Avoids predicted density in {activeJourney.pendingAlternativeRoute.zonePath.join(" → ").toUpperCase()}.
+                  Bypass Route: <span className="font-semibold text-foreground">{activeJourney.pendingAlternativeRoute.name}</span> ({activeJourney.pendingAlternativeRoute.effectiveEtaMinutes} min · {activeJourney.pendingAlternativeRoute.distanceMeters}m). Avoids predicted density in {activeJourney.pendingAlternativeRoute.zonePath.join(" → ")}.
                 </p>
                 <div className="mt-3 flex items-center gap-2">
                   <Button
                     variant="primary"
-                    className="flex-1 bg-amber-500 text-black hover:bg-amber-400 font-bold"
+                    className="flex-1"
                     onClick={acceptReroute}
                   >
                     Follow new route
                   </Button>
                   <Button
                     variant="secondary"
-                    className="flex-1 border-border/60 text-foreground-muted"
+                    className="flex-1"
                     onClick={dismissReroute}
                   >
                     Keep current route

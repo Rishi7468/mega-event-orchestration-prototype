@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState, useMemo } from "react";
+import { useEffect, useRef, useState, useMemo, useCallback } from "react";
 import type { Map as LeafletMap, LayerGroup, LatLngTuple, Marker } from "leaflet";
 import {
   useEventAuthoringStore,
@@ -209,6 +209,8 @@ export function SpatialEventBuilderMap({
   const clipZoneToRegion = useEventAuthoringStore((state) => state.clipZoneToRegion);
 
   const setRegionPolygon = useEventAuthoringStore((state) => state.setRegionPolygon);
+  const confirmRegion = useEventAuthoringStore((state) => state.confirmRegion);
+  const keepToolActive = useEventAuthoringStore((state) => state.keepToolActive);
   const updateAsset = useEventAuthoringStore((state) => state.updateAsset);
   const updateAssetPosition = useEventAuthoringStore((state) => state.updateAssetPosition);
   const updateAnchorPosition = useEventAuthoringStore((state) => state.updateAnchorPosition);
@@ -233,12 +235,35 @@ export function SpatialEventBuilderMap({
   const [measurePoints, setMeasurePoints] = useState<LatLngTuple[]>([]);
   const [hoverCoords, setHoverCoords] = useState<{ lat: number; lng: number } | null>(null);
   const [lastClickToast, setLastClickToast] = useState<{ text: string; id: number } | null>(null);
+  const [currentZoom, setCurrentZoom] = useState<number>(14);
 
   useEffect(() => {
     if (!lastClickToast) return;
     const timer = setTimeout(() => setLastClickToast(null), 3500);
     return () => clearTimeout(timer);
   }, [lastClickToast]);
+
+  const handleCompleteRegion = useCallback(() => {
+    if (drawPoints.length < 3) return;
+    setRegionPolygon(drawPoints as [number, number][]);
+    confirmRegion();
+    setDrawPoints([]);
+    if (layersRef.current.drawing) layersRef.current.drawing.clearLayers();
+    setLastClickToast({
+      text: `REGION PERIMETER CONFIRMED (${drawPoints.length} vertices)`,
+      id: Date.now(),
+    });
+    if (!keepToolActive && onToolComplete) onToolComplete("select");
+  }, [drawPoints, setRegionPolygon, confirmRegion, keepToolActive, onToolComplete]);
+
+  const handleCancelRegion = useCallback(() => {
+    setDrawPoints([]);
+    if (layersRef.current.drawing) layersRef.current.drawing.clearLayers();
+    setLastClickToast({
+      text: "REGION DRAWING CANCELLED",
+      id: Date.now(),
+    });
+  }, []);
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -331,8 +356,13 @@ export function SpatialEventBuilderMap({
       layersRef.current.vertices = L.layerGroup().addTo(map);
       layersRef.current.measure = L.layerGroup().addTo(map);
 
+      map.on("zoomend", () => {
+        setCurrentZoom(map.getZoom());
+      });
+
       mapRef.current = map;
       setMapInstance(map);
+      setCurrentZoom(map.getZoom());
 
       setTimeout(() => {
         if (mapRef.current) mapRef.current.invalidateSize();
@@ -1013,6 +1043,7 @@ export function SpatialEventBuilderMap({
               }
             }
 
+            const zoomScale = currentZoom <= 12 ? 0.6 : currentZoom <= 14 ? 0.85 : 1.0;
             const markerHtml = `
               <div style="
                 display: flex;
@@ -1026,7 +1057,8 @@ export function SpatialEventBuilderMap({
                 box-shadow: 0 0 ${isSelected ? "16px" : "10px"} ${color};
                 font-size: ${isSelected ? "15px" : "13px"};
                 cursor: move;
-                transform: translate(-50%, -50%);
+                transform: translate(-50%, -50%) scale(${zoomScale});
+                transition: transform 0.2s ease-out;
               " title="${asset.name}">
                 ${iconEmoji}
               </div>
@@ -1245,8 +1277,18 @@ export function SpatialEventBuilderMap({
     routes,
     h3Stats,
     showH3GridOverlay,
+    currentZoom,
     activeTool,
     snapping,
+    selectedObjectId,
+    selectedObjectType,
+    anchors,
+    landmarks,
+    mobileAssets,
+    sensors,
+    updateAnchorPosition,
+    updateAsset,
+    updateZoneGeometry,
     onSelectObject,
     onSelectH3Cell,
     updateAssetPosition,
@@ -1345,22 +1387,38 @@ export function SpatialEventBuilderMap({
           import("leaflet").then((L) => {
             if (layersRef.current.drawing) {
               layersRef.current.drawing.clearLayers();
-              L.polyline(updated, { color: "#6366f1", weight: 2, dashArray: "4, 4" }).addTo(
-                layersRef.current.drawing,
-              );
-              updated.forEach((pt) => {
-                L.circleMarker(pt, { radius: 5, color: "#6366f1", fillColor: "#ffffff", fillOpacity: 1 }).addTo(
-                  layersRef.current.drawing!,
+
+              if (updated.length >= 3) {
+                // Render live filled polygon preview
+                L.polygon(updated, {
+                  color: "#6366f1",
+                  weight: 3,
+                  dashArray: "6, 6",
+                  fillColor: "#6366f1",
+                  fillOpacity: 0.25,
+                }).addTo(layersRef.current.drawing);
+              } else if (updated.length === 2) {
+                // Render line segment preview
+                L.polyline(updated, { color: "#6366f1", weight: 3, dashArray: "4, 4" }).addTo(
+                  layersRef.current.drawing,
                 );
+              }
+
+              // Render numbered vertex indicators
+              updated.forEach((pt, index) => {
+                const markerHtml = `<div style="background:#6366f1; color:#ffffff; font-weight:900; font-size:10px; border-radius:999px; width:18px; height:18px; display:flex; align-items:center; justify-content:center; border:2px solid #ffffff; box-shadow:0 0 10px #6366f1;">${index + 1}</div>`;
+                L.marker(pt, {
+                  icon: L.divIcon({ html: markerHtml, className: "region-vertex-marker" }),
+                  interactive: false,
+                }).addTo(layersRef.current.drawing!);
               });
             }
           });
 
-          if (updated.length >= 4) {
-            setRegionPolygon(updated as [number, number][]);
-            if (layersRef.current.drawing) layersRef.current.drawing.clearLayers();
-            return [];
-          }
+          setLastClickToast({
+            text: `VERTEX ${updated.length} ADDED (${lat.toFixed(4)}, ${lng.toFixed(4)})`,
+            id: Date.now(),
+          });
 
           return updated;
         });
@@ -1381,7 +1439,7 @@ export function SpatialEventBuilderMap({
           text: `ANCHOR PLACED: Gate at ${lat.toFixed(4)}, ${lng.toFixed(4)}`,
           id: Date.now(),
         });
-        if (onToolComplete) onToolComplete("select");
+        if (!keepToolActive && onToolComplete) onToolComplete("select");
         return;
       }
 
@@ -1406,7 +1464,7 @@ export function SpatialEventBuilderMap({
           id: Date.now(),
         });
         if (onSelectObject) onSelectObject("asset", newAssetId);
-        if (onToolComplete) onToolComplete("select");
+        if (!keepToolActive && onToolComplete) onToolComplete("select");
         return;
       }
 
@@ -1444,7 +1502,7 @@ export function SpatialEventBuilderMap({
             });
 
             if (layersRef.current.drawing) layersRef.current.drawing.clearLayers();
-            if (onToolComplete) onToolComplete("select");
+            if (!keepToolActive && onToolComplete) onToolComplete("select");
             return [];
           }
 
@@ -1487,7 +1545,7 @@ export function SpatialEventBuilderMap({
           text: `CCTV SENSOR PLACED at ${lat.toFixed(4)}, ${lng.toFixed(4)}`,
           id: Date.now(),
         });
-        if (onToolComplete) onToolComplete("select");
+        if (!keepToolActive && onToolComplete) onToolComplete("select");
         return;
       }
 
@@ -1504,7 +1562,7 @@ export function SpatialEventBuilderMap({
           text: `LANDMARK PLACED at ${lat.toFixed(4)}, ${lng.toFixed(4)}`,
           id: Date.now(),
         });
-        if (onToolComplete) onToolComplete("select");
+        if (!keepToolActive && onToolComplete) onToolComplete("select");
         return;
       }
 
@@ -1521,7 +1579,7 @@ export function SpatialEventBuilderMap({
           text: `MOBILE ASSET DEPLOYED at ${lat.toFixed(4)}, ${lng.toFixed(4)}`,
           id: Date.now(),
         });
-        if (onToolComplete) onToolComplete("select");
+        if (!keepToolActive && onToolComplete) onToolComplete("select");
         return;
       }
 
@@ -1560,7 +1618,7 @@ export function SpatialEventBuilderMap({
         }
 
         if (onSelectObject) onSelectObject("zone", newZoneId);
-        if (onToolComplete) onToolComplete("select");
+        if (!keepToolActive && onToolComplete) onToolComplete("select");
         return;
       }
     };
@@ -1593,6 +1651,7 @@ export function SpatialEventBuilderMap({
     onSelectObject,
     onToolComplete,
     setRegionPolygon,
+    keepToolActive,
   ]);
 
   return (
@@ -1618,6 +1677,42 @@ export function SpatialEventBuilderMap({
 
       {/* Top Banner Overlay for Locked Viewport Design Mode */}
       <DesignModeHeader />
+
+      {/* Active Region Drawing Floating Control HUD */}
+      {(activeTool === "region" || drawPoints.length > 0) && (
+        <div className="absolute top-14 left-3 z-[1000] flex items-center gap-3 rounded-xl border border-indigo-500/60 bg-slate-950/95 p-2.5 backdrop-blur-md shadow-2xl animate-in fade-in">
+          <div className="flex items-center gap-2 font-mono text-xs text-indigo-300 font-bold">
+            <span className="h-2.5 w-2.5 rounded-full bg-indigo-400 animate-ping" />
+            <span>REGION PERIMETER: {drawPoints.length} vertices placed</span>
+          </div>
+
+          <div className="flex items-center gap-1.5">
+            <button
+              type="button"
+              onClick={handleCompleteRegion}
+              disabled={drawPoints.length < 3}
+              className={`rounded-lg px-2.5 py-1 text-xs font-black transition-all ${
+                drawPoints.length >= 3
+                  ? "bg-indigo-600 text-white hover:bg-indigo-500 shadow-md cursor-pointer"
+                  : "bg-slate-800 text-slate-500 cursor-not-allowed opacity-60"
+              }`}
+              title={drawPoints.length < 3 ? "Minimum 3 vertices required to complete region" : "Confirm region boundary"}
+            >
+              COMPLETE REGION ({drawPoints.length >= 3 ? "READY" : `${3 - drawPoints.length} MORE`})
+            </button>
+
+            {drawPoints.length > 0 && (
+              <button
+                type="button"
+                onClick={handleCancelRegion}
+                className="rounded-lg border border-slate-700 bg-slate-800 px-2 py-1 text-xs font-bold text-slate-300 hover:bg-slate-700 transition-all cursor-pointer"
+              >
+                CLEAR
+              </button>
+            )}
+          </div>
+        </div>
+      )}
 
       {/* Map Active Tool Banner */}
       <div className="absolute top-3 left-3 z-[1000] flex items-center gap-2 rounded-xl border border-border bg-surface/90 px-3 py-1.5 backdrop-blur-md shadow-sm">

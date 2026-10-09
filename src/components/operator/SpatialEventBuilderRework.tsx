@@ -71,6 +71,7 @@ export function SpatialEventBuilderRework({
     setCommandMode,
     setCenterCoordinates,
     createEventWithTemplate,
+    startNewBlankEvent,
     addZone,
     tickSimulation,
   } = useEventAuthoringStore();
@@ -107,6 +108,19 @@ export function SpatialEventBuilderRework({
     durationHours: number;
   }) => {
     createEventWithTemplate(params);
+  };
+
+  const handleStepClick = (mode: "build" | "plan" | "simulate" | "operate") => {
+    setCommandMode(mode);
+    if (mode === "build") {
+      setRightPanelTab("structure");
+    } else if (mode === "plan") {
+      setRightPanelTab("presets");
+    } else if (mode === "simulate") {
+      setRightPanelTab("twin");
+    } else if (mode === "operate") {
+      onCompleteAndEnterOperations();
+    }
   };
 
   return (
@@ -167,10 +181,10 @@ export function SpatialEventBuilderRework({
               <button
                 key={mode}
                 type="button"
-                onClick={() => setCommandMode(mode)}
+                onClick={() => handleStepClick(mode)}
                 className={`rounded-md px-2 py-1 text-[10px] font-bold uppercase transition-all ${
                   commandMode === mode
-                    ? "bg-indigo-600 text-white font-black"
+                    ? "bg-indigo-600 text-white font-black shadow-md"
                     : "bg-slate-800/80 text-slate-400 hover:bg-slate-800 hover:text-slate-200"
                 }`}
               >
@@ -178,6 +192,16 @@ export function SpatialEventBuilderRework({
               </button>
             ))}
           </div>
+
+          <button
+            type="button"
+            onClick={() => startNewBlankEvent({ name: "New Event Plan", center: [25.4321, 81.8765] })}
+            className="flex items-center gap-1 rounded-lg border border-emerald-500/40 bg-emerald-500/10 px-2.5 py-1 text-[10px] font-bold text-emerald-300 hover:bg-emerald-500/20 transition-all"
+            title="Start a fresh, empty workspace with zero pre-existing objects"
+          >
+            <Plus className="h-3 w-3 text-emerald-400" />
+            <span>NEW PLAN</span>
+          </button>
 
           <button
             type="button"

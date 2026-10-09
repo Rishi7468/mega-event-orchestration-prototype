@@ -515,7 +515,7 @@ export const SpatialDesignOverlayCanvas: React.FC<SpatialDesignOverlayCanvasProp
 
       setCreatingShape(null);
       setTransformBadge(null);
-      if (onToolComplete) onToolComplete("select");
+      if (!keepToolActive && onToolComplete) onToolComplete("select");
       return;
     }
 
@@ -582,10 +582,18 @@ export const SpatialDesignOverlayCanvas: React.FC<SpatialDesignOverlayCanvasProp
     };
   };
 
+  const isPointerEventsActive =
+    Boolean(creatingShape) ||
+    Boolean(activeHandle) ||
+    isSetCenterMode ||
+    ["rectangle", "circle", "cctv", "route"].includes(activeTool);
+
   return (
     <svg
       ref={containerRef}
-      className="absolute inset-0 z-50 h-full w-full pointer-events-auto select-none touch-none"
+      className={`absolute inset-0 z-50 h-full w-full select-none touch-none ${
+        isPointerEventsActive ? "pointer-events-auto" : "pointer-events-none"
+      }`}
       onPointerDown={handlePointerDown}
       onPointerMove={handlePointerMove}
       onPointerUp={handlePointerUp}
@@ -604,7 +612,7 @@ export const SpatialDesignOverlayCanvas: React.FC<SpatialDesignOverlayCanvasProp
         const color = zone.customColor || (zone.riskLevel === "high" ? "#ef4444" : zone.riskLevel === "medium" ? "#eab308" : "#06b6d4");
 
         return (
-          <g key={zone.id} className="cursor-pointer">
+          <g key={zone.id} className="cursor-pointer pointer-events-auto">
             {/* Zone Shape Geometry */}
             {zone.shapeType === "circle" ? (
               <circle
@@ -616,6 +624,7 @@ export const SpatialDesignOverlayCanvas: React.FC<SpatialDesignOverlayCanvasProp
                 stroke={color}
                 strokeWidth={isSelected ? 3 : 2}
                 strokeDasharray={isSelected ? "6,4" : undefined}
+                className="pointer-events-auto"
                 onPointerDown={(e) => startObjectDrag(e, zone.id, "zone", "move")}
               />
             ) : (
@@ -626,6 +635,7 @@ export const SpatialDesignOverlayCanvas: React.FC<SpatialDesignOverlayCanvasProp
                 stroke={color}
                 strokeWidth={isSelected ? 3 : 2}
                 strokeDasharray={isSelected ? "6,4" : undefined}
+                className="pointer-events-auto"
                 onPointerDown={(e) => startObjectDrag(e, zone.id, "zone", "move")}
               />
             )}

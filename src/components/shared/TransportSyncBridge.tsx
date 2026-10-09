@@ -80,19 +80,20 @@ export function TransportSyncBridge() {
   }, [mode]);
 
   return (
-    <div className="flex items-center gap-2 rounded-full border border-surface-border bg-surface/80 backdrop-blur-md px-3 py-1 text-xs text-foreground-muted">
+    <div className="flex items-center gap-2 rounded-full border border-slate-700 bg-slate-900/90 backdrop-blur-md px-3 py-1 text-xs text-slate-300 shadow-sm" title="Realtime state transport bridge across browser tabs and server endpoints.">
       <span className="relative flex h-2 w-2">
         <span className={`animate-ping absolute inline-flex h-full w-full rounded-full opacity-75 ${connected ? "bg-emerald-400" : "bg-amber-400"}`}></span>
         <span className={`relative inline-flex rounded-full h-2 w-2 ${connected ? "bg-emerald-500" : "bg-amber-500"}`}></span>
       </span>
-      <span className="font-medium text-foreground">
-        {mode === "network" ? "Realtime Network (SSE)" : "Local (Tab Sync)"}
+      <span className="font-semibold text-slate-100">
+        {mode === "network" ? "Live Sync Active (SSE Stream)" : "Local Tab Sync (Broadcast)"}
       </span>
       <button
         onClick={() => setMode(mode === "network" ? "local" : "network")}
-        className="ml-1 underline text-[10px] hover:text-foreground transition-colors"
+        className="ml-1 rounded px-1.5 py-0.5 text-[10px] font-bold text-indigo-300 hover:bg-indigo-500/20 hover:text-indigo-200 transition-colors border border-indigo-500/30"
+        title={mode === "network" ? "Switch to Local Tab-to-Tab Broadcast Sync" : "Switch to Server-Sent Events (SSE) Stream Sync"}
       >
-        Switch to {mode === "network" ? "Local" : "Network"}
+        {mode === "network" ? "Switch to Local Sync" : "Switch to SSE Stream"}
       </button>
     </div>
   );

@@ -109,22 +109,22 @@ export default function JourneyPlannerPage() {
           </div>
         </Card>
 
-        {/* PHASE 5: EVENT-AWARE ROUTE SELECTION CARD */}
+        {/* EVENT-AWARE ROUTE SELECTION CARD */}
         {eventRouting && eventRouting.recommendedRoute && (
-          <Card className="border-emerald-500/30 bg-emerald-950/20 p-4">
+          <Card className="border-risk-low/30 bg-risk-low-bg p-4">
             <div className="flex items-start gap-3">
-              <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-emerald-500/20 text-emerald-400">
+              <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-risk-low/15 text-risk-low">
                 <Navigation className="h-5 w-5" />
               </div>
               <div className="min-w-0 flex-1">
                 <div className="flex flex-wrap items-center justify-between gap-2">
                   <div className="flex items-center gap-2">
-                    <span className="text-xs font-bold uppercase tracking-wider text-emerald-400">
-                      ⚡ Event-Aware Route Selected
+                    <span className="text-xs font-semibold text-risk-low">
+                      Event-Aware Route Selected
                     </span>
                     <Chip tone="positive">Score-Optimized</Chip>
                   </div>
-                  <span className="text-xs font-mono font-semibold text-emerald-300">
+                  <span className="text-xs font-medium tabular-nums text-foreground">
                     {eventRouting.recommendedRoute.effectiveEtaMinutes} min · {eventRouting.recommendedRoute.distanceMeters}m
                   </span>
                 </div>
@@ -134,14 +134,14 @@ export default function JourneyPlannerPage() {
                 </p>
 
                 {/* Explicit Human-Readable Explanation */}
-                <div className="mt-2.5 rounded-lg border border-emerald-500/20 bg-emerald-900/30 p-2.5 text-xs leading-relaxed text-emerald-200">
-                  <span className="font-semibold text-emerald-300">Why this route: </span>
+                <div className="mt-2.5 rounded-lg border border-risk-low/30 bg-surface/80 p-2.5 text-xs leading-relaxed text-foreground">
+                  <span className="font-semibold text-risk-low">Why this route: </span>
                   {eventRouting.recommendedRoute.explanation}
                 </div>
 
                 {/* Candidate Path Comparison List */}
                 <div className="mt-3 space-y-1.5 border-t border-border/40 pt-2.5">
-                  <p className="text-[11px] font-semibold text-foreground-muted uppercase tracking-wider">
+                  <p className="text-[11px] font-semibold text-foreground-muted">
                     Evaluated Route Candidates
                   </p>
                   {eventRouting.candidates.map((cand) => {
@@ -151,7 +151,7 @@ export default function JourneyPlannerPage() {
                         key={cand.id}
                         className={`flex items-center justify-between rounded-md p-2 text-xs transition-colors ${
                           isBest
-                            ? "bg-emerald-500/10 font-medium text-emerald-300 border border-emerald-500/30"
+                            ? "bg-surface font-medium text-foreground border border-risk-low/40 shadow-xs"
                             : "bg-surface-muted/60 text-foreground-muted hover:bg-surface-muted"
                         }`}
                       >
@@ -162,11 +162,11 @@ export default function JourneyPlannerPage() {
                             {cand.status === "congested" && <Chip tone="warning">Congested</Chip>}
                           </div>
                           <p className="text-[10px] text-foreground-muted truncate">
-                            Traverses: {cand.zonePath.join(" → ").toUpperCase()} · Crowd: {cand.dominantCrowdLevel}
+                            Traverses: {cand.zonePath.join(" → ")} · Crowd: {cand.dominantCrowdLevel}
                           </p>
                         </div>
                         <div className="text-right shrink-0">
-                          <p className="font-mono font-bold text-foreground">{cand.effectiveEtaMinutes} min</p>
+                          <p className="font-semibold tabular-nums text-foreground">{cand.effectiveEtaMinutes} min</p>
                           <p className="text-[10px] text-foreground-muted">{cand.distanceMeters}m</p>
                         </div>
                       </div>

@@ -33,6 +33,13 @@ export const cameraDevices: CameraDevice[] = [
     zoneId: "east",
     coverageArea: "East arterial approach road",
   },
+  {
+    id: "cam-04",
+    name: "CAM-04 · South Connector",
+    source: "site-camera",
+    zoneId: "south",
+    coverageArea: "South arterial connector corridor",
+  },
 ];
 
 /**
@@ -87,6 +94,15 @@ export const cameraObservationsNormal: CameraObservation[] = [
     movementDirection: "→ Central",
     status: "normal",
   },
+  {
+    cameraId: "cam-04",
+    observedAt: "09:24:05",
+    peopleDetected: 2_150,
+    densityPercent: 38,
+    flowPerMinute: 140,
+    movementDirection: "→ North",
+    status: "normal",
+  },
 ];
 
 export const cameraObservationsSpike: CameraObservation[] = [
@@ -117,6 +133,15 @@ export const cameraObservationsSpike: CameraObservation[] = [
     movementDirection: "→ Central",
     status: "elevated",
   },
+  {
+    cameraId: "cam-04",
+    observedAt: "09:25:55",
+    peopleDetected: 3_420,
+    densityPercent: 52,
+    flowPerMinute: 210,
+    movementDirection: "→ North",
+    status: "normal",
+  },
 ];
 
 export const cameraObservationsOutcome: CameraObservation[] = [
@@ -145,6 +170,15 @@ export const cameraObservationsOutcome: CameraObservation[] = [
     densityPercent: 61,
     flowPerMinute: 118,
     movementDirection: "→ Central",
+    status: "normal",
+  },
+  {
+    cameraId: "cam-04",
+    observedAt: "09:41:20",
+    peopleDetected: 2_450,
+    densityPercent: 40,
+    flowPerMinute: 155,
+    movementDirection: "→ North",
     status: "normal",
   },
 ];

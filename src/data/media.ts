@@ -38,6 +38,11 @@ export const cameraMedia: CameraMedia[] = [
     src: "/media/cameras/camera-03.mp4",
     attribution: "Simulated camera feed",
   },
+  {
+    cameraId: "cam-04",
+    src: "/media/cameras/camera-04.mp4",
+    attribution: "Simulated camera feed",
+  },
 ];
 
 export function getCameraMedia(cameraId: string): CameraMedia | undefined {

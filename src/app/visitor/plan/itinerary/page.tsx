@@ -66,15 +66,15 @@ export default function MultiStopItineraryPage() {
       <div className="space-y-5">
         {/* LIVE REORDER CONFIRMATION BANNER */}
         {activeItinerary?.reorderAvailable && activeItinerary.pendingResult && (
-          <Card className="border-amber-500/60 bg-amber-950/30 p-4 shadow-xl animate-pulse-subtle">
+          <Card className="border-risk-medium/30 bg-risk-medium-bg p-4 animate-fade-up">
             <div className="flex items-start gap-3">
-              <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-amber-500/20 text-amber-400">
+              <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-risk-medium/15 text-risk-medium">
                 <AlertTriangle className="h-5 w-5" />
               </div>
               <div className="min-w-0 flex-1">
                 <div className="flex items-center justify-between gap-2">
-                  <span className="text-xs font-bold uppercase tracking-wider text-amber-400">
-                    ⚡ Live Itinerary Reorder Offered
+                  <span className="text-xs font-semibold text-risk-medium">
+                    Live Itinerary Reorder Offered
                   </span>
                   <Chip tone="warning">Crowd Escalation</Chip>
                 </div>
@@ -83,21 +83,21 @@ export default function MultiStopItineraryPage() {
                 </p>
                 <p className="mt-1 text-xs text-foreground-muted">
                   New Recommended Order:{" "}
-                  <span className="font-bold text-foreground">
+                  <span className="font-semibold text-foreground">
                     {activeItinerary.pendingResult.stops.map((s) => s.name).join(" → ")}
                   </span>
                 </p>
                 <div className="mt-3 flex items-center gap-2">
                   <Button
                     variant="primary"
-                    className="flex-1 bg-amber-500 text-black hover:bg-amber-400 font-bold"
+                    className="flex-1"
                     onClick={acceptItineraryReorder}
                   >
                     Accept New Order
                   </Button>
                   <Button
                     variant="secondary"
-                    className="flex-1 border-border/60 text-foreground-muted"
+                    className="flex-1"
                     onClick={dismissItineraryReorder}
                   >
                     Keep Original Order
@@ -251,10 +251,10 @@ export default function MultiStopItineraryPage() {
 
           <Button
             variant="primary"
-            className="w-full bg-accent text-accent-foreground font-bold h-11"
+            className="w-full"
             onClick={handleOptimize}
           >
-            <Sparkles className="mr-2 h-4 w-4" />
+            <Sparkles className="h-4 w-4" />
             Generate Optimized Itinerary
           </Button>
         </Card>
@@ -264,10 +264,10 @@ export default function MultiStopItineraryPage() {
           <Card className="p-4 space-y-4 border-accent/30">
             <div className="flex items-center justify-between border-b border-border pb-3">
               <div>
-                <p className="text-xs font-bold uppercase tracking-wider text-accent">
-                  YOUR OPTIMIZED ITINERARY
+                <p className="text-xs font-semibold text-foreground-muted">
+                  Your Optimized Itinerary
                 </p>
-                <p className="text-base font-bold text-foreground">
+                <p className="text-base font-semibold text-foreground">
                   {result.fittedCount} Stops · ~{result.totalDurationMinutes} min total
                 </p>
               </div>
@@ -276,8 +276,8 @@ export default function MultiStopItineraryPage() {
 
             {/* Time Constraint Advisory */}
             {result.fittedCount < result.totalRequestedCount && (
-              <div className="flex items-center gap-2.5 rounded-lg border border-amber-500/40 bg-amber-950/20 p-3 text-xs text-amber-300">
-                <ShieldAlert className="h-4 w-4 shrink-0 text-amber-400" />
+              <div className="flex items-center gap-2.5 rounded-lg border border-risk-medium/30 bg-risk-medium-bg p-3 text-xs text-foreground">
+                <ShieldAlert className="h-4 w-4 shrink-0 text-risk-medium" />
                 <span>
                   <strong>Notice:</strong> {result.fittedCount} of {result.totalRequestedCount}{" "}
                   destinations fit within your {availableTime} min budget.

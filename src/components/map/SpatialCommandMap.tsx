@@ -98,15 +98,12 @@ export function SpatialCommandMap({
   const [is3DView, setIs3DView] = useState<boolean>(true);
   const [flowProgress, setFlowProgress] = useState<number>(0);
 
+  // Clean default map view: shows critical operational context (zones, risk heatmap, active incidents)
+  // Secondary layers (cameras, field teams, medical, corridors) are hidden until toggled by operator
   const [visibleLayers, setVisibleLayers] = useState<SpatialLayerId[]>([
     "zones",
     "risk_overlay",
     "incidents",
-    "gates",
-    "cameras",
-    "field_teams",
-    "medical",
-    "corridors",
   ]);
 
   const activeItinerary = useSimulationStore((state) => state.activeItinerary);
@@ -961,15 +958,47 @@ export function SpatialCommandMap({
       {/* Top Layer & Mode Control Toolbar */}
       <div className="absolute top-3 left-3 right-3 z-[1000] flex flex-wrap items-center justify-between gap-2 rounded-xl border border-white/15 bg-black/75 p-2 backdrop-blur-md">
         <div className="flex flex-wrap items-center gap-1.5">
-          <span className="mr-2 text-[10px] font-bold uppercase tracking-wider text-zinc-400 pl-1">
-            Spatial Layers
+          <span className="mr-1 text-[10px] font-bold uppercase tracking-wider text-zinc-400 pl-1">
+            Presets:
+          </span>
+          <button
+            type="button"
+            onClick={() => setVisibleLayers(["zones", "risk_overlay", "incidents"])}
+            className="rounded-lg bg-indigo-500/20 border border-indigo-500/40 px-2 py-0.5 text-[10px] font-mono font-bold text-indigo-300 hover:bg-indigo-500/30 transition-all cursor-pointer"
+          >
+            🛡️ Ops
+          </button>
+          <button
+            type="button"
+            onClick={() => setVisibleLayers(["zones", "flow_vectors", "corridors"])}
+            className="rounded-lg bg-emerald-500/20 border border-emerald-500/40 px-2 py-0.5 text-[10px] font-mono font-bold text-emerald-300 hover:bg-emerald-500/30 transition-all cursor-pointer"
+          >
+            🛣️ Routing
+          </button>
+          <button
+            type="button"
+            onClick={() => setVisibleLayers(["zones", "gates", "cameras", "medical"])}
+            className="rounded-lg bg-blue-500/20 border border-blue-500/40 px-2 py-0.5 text-[10px] font-mono font-bold text-blue-300 hover:bg-blue-500/30 transition-all cursor-pointer"
+          >
+            🏢 Infra
+          </button>
+          <button
+            type="button"
+            onClick={() => setVisibleLayers(["heatmap", "flow_vectors", "pedestrian_graph"])}
+            className="rounded-lg bg-amber-500/20 border border-amber-500/40 px-2 py-0.5 text-[10px] font-mono font-bold text-amber-300 hover:bg-amber-500/30 transition-all cursor-pointer"
+          >
+            🧪 Intel
+          </button>
+
+          <span className="ml-2 mr-1 text-[10px] font-bold uppercase tracking-wider text-zinc-400 border-l border-white/10 pl-2">
+            Layers:
           </span>
           <button
             type="button"
             onClick={() => toggleLayer("zones")}
-            className={`rounded-lg px-2.5 py-1 text-xs font-semibold transition-all ${
+            className={`rounded-lg px-2.5 py-1 text-xs font-semibold transition-all cursor-pointer ${
               visibleLayers.includes("zones")
-                ? "bg-accent text-accent-foreground shadow-md"
+                ? "bg-accent text-accent-foreground shadow-md font-bold"
                 : "bg-white/5 text-zinc-400 hover:bg-white/10"
             }`}
           >
@@ -978,9 +1007,9 @@ export function SpatialCommandMap({
           <button
             type="button"
             onClick={() => toggleLayer("heatmap")}
-            className={`rounded-lg px-2.5 py-1 text-xs font-semibold transition-all ${
+            className={`rounded-lg px-2.5 py-1 text-xs font-semibold transition-all cursor-pointer ${
               visibleLayers.includes("heatmap")
-                ? "bg-orange-500 text-white shadow-md"
+                ? "bg-orange-500 text-white shadow-md font-bold"
                 : "bg-white/5 text-zinc-400 hover:bg-white/10"
             }`}
           >
@@ -989,9 +1018,9 @@ export function SpatialCommandMap({
           <button
             type="button"
             onClick={() => toggleLayer("flow_vectors")}
-            className={`rounded-lg px-2.5 py-1 text-xs font-semibold transition-all ${
+            className={`rounded-lg px-2.5 py-1 text-xs font-semibold transition-all cursor-pointer ${
               visibleLayers.includes("flow_vectors")
-                ? "bg-blue-500 text-white shadow-md"
+                ? "bg-blue-500 text-white shadow-md font-bold"
                 : "bg-white/5 text-zinc-400 hover:bg-white/10"
             }`}
           >
@@ -1000,9 +1029,9 @@ export function SpatialCommandMap({
           <button
             type="button"
             onClick={() => toggleLayer("gates")}
-            className={`rounded-lg px-2.5 py-1 text-xs font-semibold transition-all ${
+            className={`rounded-lg px-2.5 py-1 text-xs font-semibold transition-all cursor-pointer ${
               visibleLayers.includes("gates")
-                ? "bg-emerald-500 text-white shadow-md"
+                ? "bg-emerald-500 text-white shadow-md font-bold"
                 : "bg-white/5 text-zinc-400 hover:bg-white/10"
             }`}
           >
@@ -1011,9 +1040,9 @@ export function SpatialCommandMap({
           <button
             type="button"
             onClick={() => toggleLayer("cameras")}
-            className={`rounded-lg px-2.5 py-1 text-xs font-semibold transition-all ${
+            className={`rounded-lg px-2.5 py-1 text-xs font-semibold transition-all cursor-pointer ${
               visibleLayers.includes("cameras")
-                ? "bg-indigo-500 text-white shadow-md"
+                ? "bg-purple-600 text-white shadow-md font-bold"
                 : "bg-white/5 text-zinc-400 hover:bg-white/10"
             }`}
           >
@@ -1022,13 +1051,35 @@ export function SpatialCommandMap({
           <button
             type="button"
             onClick={() => toggleLayer("incidents")}
-            className={`rounded-lg px-2.5 py-1 text-xs font-semibold transition-all ${
+            className={`rounded-lg px-2.5 py-1 text-xs font-semibold transition-all cursor-pointer ${
               visibleLayers.includes("incidents")
-                ? "bg-red-500 text-white shadow-md"
+                ? "bg-red-500 text-white shadow-md font-bold"
                 : "bg-white/5 text-zinc-400 hover:bg-white/10"
             }`}
           >
             Incidents
+          </button>
+          <button
+            type="button"
+            onClick={() => toggleLayer("corridors")}
+            className={`rounded-lg px-2.5 py-1 text-xs font-semibold transition-all cursor-pointer ${
+              visibleLayers.includes("corridors")
+                ? "bg-cyan-500 text-white shadow-md font-bold"
+                : "bg-white/5 text-zinc-400 hover:bg-white/10"
+            }`}
+          >
+            Corridors
+          </button>
+          <button
+            type="button"
+            onClick={() => toggleLayer("pedestrian_graph")}
+            className={`rounded-lg px-2.5 py-1 text-xs font-semibold transition-all cursor-pointer ${
+              visibleLayers.includes("pedestrian_graph")
+                ? "bg-pink-500 text-white shadow-md font-bold"
+                : "bg-white/5 text-zinc-400 hover:bg-white/10"
+            }`}
+          >
+            Graph Nodes
           </button>
         </div>
 
