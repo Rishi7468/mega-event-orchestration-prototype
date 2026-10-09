@@ -216,113 +216,115 @@ export default function CrowdIntelligencePage() {
         </div>
       )}
 
-      <div className="overflow-hidden rounded-xl border border-border bg-surface">
-        <div className="px-4 py-3 border-b border-border bg-surface-muted/30 flex items-center justify-between">
-          <h3 className="text-xs font-bold text-foreground uppercase tracking-wider">
-            Live Zone Crowd Intelligence Matrix
-          </h3>
-          <span className="text-[10px] font-mono text-emerald-400 font-semibold">[LIVE SSE AGGREGATED]</span>
+      {useMemo(() => (
+        <div className="overflow-hidden rounded-xl border border-border bg-surface">
+          <div className="px-4 py-3 border-b border-border bg-surface-muted/30 flex items-center justify-between">
+            <h3 className="text-xs font-bold text-foreground uppercase tracking-wider">
+              Live Zone Crowd Intelligence Matrix
+            </h3>
+            <span className="text-[10px] font-mono text-emerald-400 font-semibold">[LIVE SSE AGGREGATED]</span>
+          </div>
+          <table className="w-full text-left text-sm">
+            <thead>
+              <tr className="border-b border-border text-[11px] uppercase tracking-wide text-foreground-muted">
+                <th className="px-4 py-3 font-medium">Zone Sector</th>
+                <th className="px-4 py-3 font-medium">Live Headcount</th>
+                <th className="px-4 py-3 font-medium">Occupancy</th>
+                <th className="px-4 py-3 font-medium">Crowd Level</th>
+                <th className="px-4 py-3 font-medium">Trend</th>
+                <th className="px-4 py-3 font-medium">Forecast (+15m)</th>
+                <th className="px-4 py-3 font-medium">Time to Critical</th>
+                <th className="px-4 py-3 font-medium">Confidence & Source</th>
+                <th className="px-4 py-3 font-medium">Status</th>
+              </tr>
+            </thead>
+            <tbody>
+              {zones.map((zone) => {
+                const liveState = liveCrowdStates[zone.id];
+                const prediction = predictions[zone.id];
+                const snapshot = zoneSnapshots.find((item) => item.zoneId === zone.id);
+                const zoneCameras = cameras.filter((camera) => camera.zoneId === zone.id);
+
+                const headcount = liveState?.peopleCount ?? Math.round((zone.capacity * (snapshot?.crowdPressure ?? 40)) / 100);
+                const pressure = liveState?.occupancyPercent ?? snapshot?.crowdPressure ?? 40;
+                const crowdLevel = liveState?.crowdLevel ?? (pressure >= 85 ? "CRITICAL" : pressure >= 70 ? "HIGH" : pressure >= 45 ? "MODERATE" : "LOW");
+                const trend = liveState?.trend ?? "STABLE";
+                const confidencePercent = liveState?.confidencePercent ?? 92;
+                const source = liveState?.source ?? "SIMULATED";
+
+                const predictedLevel = prediction?.predictedCrowdLevel ?? crowdLevel;
+                const timeToCritical = prediction?.timeToCriticalMinutes;
+
+                return (
+                  <tr key={zone.id} className="border-b border-border last:border-0 hover:bg-surface-muted/30 transition-colors">
+                    <td className="px-4 py-3">
+                      <div className="font-semibold text-foreground">{zone.name}</div>
+                      <div className="text-[10px] font-mono text-foreground-muted">{zone.id.toUpperCase()} · {zoneCameras.length} CCTV Feeds</div>
+                    </td>
+                    <td className="px-4 py-3 font-bold tabular-nums text-foreground">
+                      {headcount.toLocaleString()}
+                    </td>
+                    <td className="px-4 py-3 tabular-nums text-foreground-muted">
+                      <span className="font-bold text-foreground">{pressure}%</span>
+                      <div className="w-16 h-1 bg-surface-muted rounded-full overflow-hidden mt-1">
+                        <div
+                          className={`h-full ${pressure >= 85 ? "bg-red-500" : pressure >= 70 ? "bg-amber-500" : "bg-emerald-500"}`}
+                          style={{ width: `${Math.min(100, pressure)}%` }}
+                        />
+                      </div>
+                    </td>
+                    <td className="px-4 py-3 font-mono font-bold text-xs">
+                      <span className={`px-2 py-0.5 rounded border text-[10px] uppercase font-bold ${
+                        crowdLevel === "CRITICAL" ? "bg-red-500/20 text-red-400 border-red-500/40" :
+                        crowdLevel === "HIGH" ? "bg-amber-500/20 text-amber-400 border-amber-500/40" :
+                        crowdLevel === "MODERATE" ? "bg-yellow-500/20 text-yellow-400 border-yellow-500/40" :
+                        "bg-emerald-500/20 text-emerald-400 border-emerald-500/40"
+                      }`}>
+                        {crowdLevel}
+                      </span>
+                    </td>
+                    <td className="px-4 py-3 text-xs">
+                      <span className={`font-semibold flex items-center gap-1 ${
+                        trend === "INCREASING" ? "text-red-400" : trend === "DECREASING" ? "text-emerald-400" : "text-foreground-muted"
+                      }`}>
+                        {trend === "INCREASING" ? "↑ Increasing" : trend === "DECREASING" ? "↓ Easing" : "→ Stable"}
+                      </span>
+                    </td>
+                    <td className="px-4 py-3 font-mono font-bold text-xs">
+                      <span className={`px-2 py-0.5 rounded border text-[10px] uppercase ${
+                        predictedLevel === "CRITICAL" ? "bg-red-500/30 text-red-400 border-red-500/50 font-extrabold animate-pulse" :
+                        predictedLevel === "HIGH" ? "bg-amber-500/30 text-amber-400 border-amber-500/50 font-bold" :
+                        predictedLevel === "MODERATE" ? "bg-yellow-500/30 text-yellow-400 border-yellow-500/50" :
+                        "bg-emerald-500/30 text-emerald-400 border-emerald-500/50"
+                      }`}>
+                        ⚡ {predictedLevel} ({prediction?.predictedOccupancyPercent ?? pressure}%)
+                      </span>
+                    </td>
+                    <td className="px-4 py-3 text-xs font-mono font-bold">
+                      {timeToCritical === undefined || timeToCritical === null ? (
+                        <span className="text-foreground-muted font-normal">Not predicted</span>
+                      ) : timeToCritical === 0 ? (
+                        <span className="text-red-400 font-extrabold uppercase text-[10px] bg-red-500/20 px-1.5 py-0.5 rounded border border-red-500/40">Critical Now</span>
+                      ) : (
+                        <span className="text-red-400 font-extrabold">~{timeToCritical} min</span>
+                      )}
+                    </td>
+                    <td className="px-4 py-3 text-xs text-foreground-muted">
+                      <div>{confidencePercent}% confidence</div>
+                      <span className={`text-[10px] font-mono font-bold ${source === "CV" ? "text-purple-400" : "text-blue-400"}`}>
+                        {source === "CV" ? "[CV Telemetry]" : "[Simulated]"}
+                      </span>
+                    </td>
+                    <td className="px-4 py-3">
+                      <StatusBadge risk={pressureToRisk(pressure)} />
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
         </div>
-        <table className="w-full text-left text-sm">
-          <thead>
-            <tr className="border-b border-border text-[11px] uppercase tracking-wide text-foreground-muted">
-              <th className="px-4 py-3 font-medium">Zone Sector</th>
-              <th className="px-4 py-3 font-medium">Live Headcount</th>
-              <th className="px-4 py-3 font-medium">Occupancy</th>
-              <th className="px-4 py-3 font-medium">Crowd Level</th>
-              <th className="px-4 py-3 font-medium">Trend</th>
-              <th className="px-4 py-3 font-medium">Forecast (+15m)</th>
-              <th className="px-4 py-3 font-medium">Time to Critical</th>
-              <th className="px-4 py-3 font-medium">Confidence & Source</th>
-              <th className="px-4 py-3 font-medium">Status</th>
-            </tr>
-          </thead>
-          <tbody>
-            {zones.map((zone) => {
-              const liveState = liveCrowdStates[zone.id];
-              const prediction = predictions[zone.id];
-              const snapshot = zoneSnapshots.find((item) => item.zoneId === zone.id);
-              const zoneCameras = cameras.filter((camera) => camera.zoneId === zone.id);
-
-              const headcount = liveState?.peopleCount ?? Math.round((zone.capacity * (snapshot?.crowdPressure ?? 40)) / 100);
-              const pressure = liveState?.occupancyPercent ?? snapshot?.crowdPressure ?? 40;
-              const crowdLevel = liveState?.crowdLevel ?? (pressure >= 85 ? "CRITICAL" : pressure >= 70 ? "HIGH" : pressure >= 45 ? "MODERATE" : "LOW");
-              const trend = liveState?.trend ?? "STABLE";
-              const confidencePercent = liveState?.confidencePercent ?? 92;
-              const source = liveState?.source ?? "SIMULATED";
-
-              const predictedLevel = prediction?.predictedCrowdLevel ?? crowdLevel;
-              const timeToCritical = prediction?.timeToCriticalMinutes;
-
-              return (
-                <tr key={zone.id} className="border-b border-border last:border-0 hover:bg-surface-muted/30 transition-colors">
-                  <td className="px-4 py-3">
-                    <div className="font-semibold text-foreground">{zone.name}</div>
-                    <div className="text-[10px] font-mono text-foreground-muted">{zone.id.toUpperCase()} · {zoneCameras.length} CCTV Feeds</div>
-                  </td>
-                  <td className="px-4 py-3 font-bold tabular-nums text-foreground">
-                    {headcount.toLocaleString()}
-                  </td>
-                  <td className="px-4 py-3 tabular-nums text-foreground-muted">
-                    <span className="font-bold text-foreground">{pressure}%</span>
-                    <div className="w-16 h-1 bg-surface-muted rounded-full overflow-hidden mt-1">
-                      <div
-                        className={`h-full ${pressure >= 85 ? "bg-red-500" : pressure >= 70 ? "bg-amber-500" : "bg-emerald-500"}`}
-                        style={{ width: `${Math.min(100, pressure)}%` }}
-                      />
-                    </div>
-                  </td>
-                  <td className="px-4 py-3 font-mono font-bold text-xs">
-                    <span className={`px-2 py-0.5 rounded border text-[10px] uppercase font-bold ${
-                      crowdLevel === "CRITICAL" ? "bg-red-500/20 text-red-400 border-red-500/40" :
-                      crowdLevel === "HIGH" ? "bg-amber-500/20 text-amber-400 border-amber-500/40" :
-                      crowdLevel === "MODERATE" ? "bg-yellow-500/20 text-yellow-400 border-yellow-500/40" :
-                      "bg-emerald-500/20 text-emerald-400 border-emerald-500/40"
-                    }`}>
-                      {crowdLevel}
-                    </span>
-                  </td>
-                  <td className="px-4 py-3 text-xs">
-                    <span className={`font-semibold flex items-center gap-1 ${
-                      trend === "INCREASING" ? "text-red-400" : trend === "DECREASING" ? "text-emerald-400" : "text-foreground-muted"
-                    }`}>
-                      {trend === "INCREASING" ? "↑ Increasing" : trend === "DECREASING" ? "↓ Easing" : "→ Stable"}
-                    </span>
-                  </td>
-                  <td className="px-4 py-3 font-mono font-bold text-xs">
-                    <span className={`px-2 py-0.5 rounded border text-[10px] uppercase ${
-                      predictedLevel === "CRITICAL" ? "bg-red-500/30 text-red-400 border-red-500/50 font-extrabold animate-pulse" :
-                      predictedLevel === "HIGH" ? "bg-amber-500/30 text-amber-400 border-amber-500/50 font-bold" :
-                      predictedLevel === "MODERATE" ? "bg-yellow-500/30 text-yellow-400 border-yellow-500/50" :
-                      "bg-emerald-500/30 text-emerald-400 border-emerald-500/50"
-                    }`}>
-                      ⚡ {predictedLevel} ({prediction?.predictedOccupancyPercent ?? pressure}%)
-                    </span>
-                  </td>
-                  <td className="px-4 py-3 text-xs font-mono font-bold">
-                    {timeToCritical === undefined || timeToCritical === null ? (
-                      <span className="text-foreground-muted font-normal">Not predicted</span>
-                    ) : timeToCritical === 0 ? (
-                      <span className="text-red-400 font-extrabold uppercase text-[10px] bg-red-500/20 px-1.5 py-0.5 rounded border border-red-500/40">Critical Now</span>
-                    ) : (
-                      <span className="text-red-400 font-extrabold">~{timeToCritical} min</span>
-                    )}
-                  </td>
-                  <td className="px-4 py-3 text-xs text-foreground-muted">
-                    <div>{confidencePercent}% confidence</div>
-                    <span className={`text-[10px] font-mono font-bold ${source === "CV" ? "text-purple-400" : "text-blue-400"}`}>
-                      {source === "CV" ? "[CV Telemetry]" : "[Simulated]"}
-                    </span>
-                  </td>
-                  <td className="px-4 py-3">
-                    <StatusBadge risk={pressureToRisk(pressure)} />
-                  </td>
-                </tr>
-              );
-            })}
-          </tbody>
-        </table>
-      </div>
+      ), [liveCrowdStates, predictions, zoneSnapshots, cameras])}
     </div>
   );
 }

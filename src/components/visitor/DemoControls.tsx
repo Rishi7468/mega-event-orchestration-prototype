@@ -1,5 +1,6 @@
 "use client";
 
+import { useState } from "react";
 import { RotateCcw, Zap } from "lucide-react";
 import { resetDemo, runDemoScenario } from "@/lib/demo";
 import { useSimulationStore } from "@/store/simulationStore";
@@ -11,6 +12,27 @@ import { useSimulationStore } from "@/store/simulationStore";
  */
 export function DemoControls() {
   const phase = useSimulationStore((state) => state.phase);
+  const [isPending, setIsPending] = useState(false);
+
+  const handleSimulate = async () => {
+    if (isPending) return;
+    setIsPending(true);
+    try {
+      await runDemoScenario();
+    } finally {
+      setTimeout(() => setIsPending(false), 300);
+    }
+  };
+
+  const handleReset = async () => {
+    if (isPending) return;
+    setIsPending(true);
+    try {
+      await resetDemo();
+    } finally {
+      setTimeout(() => setIsPending(false), 300);
+    }
+  };
 
   return (
     <div className="mt-6 rounded-xl border border-dashed border-border px-3 py-2.5">
@@ -21,17 +43,18 @@ export function DemoControls() {
         <div className="flex items-center gap-1">
           <button
             type="button"
-            onClick={runDemoScenario}
-            disabled={phase !== "normal"}
-            className="flex h-9 items-center gap-1.5 rounded-lg px-2.5 text-xs font-medium text-foreground-muted focus-visible:ring-2 focus-visible:ring-accent focus-visible:outline-none disabled:opacity-30"
+            onClick={handleSimulate}
+            disabled={phase !== "normal" || isPending}
+            className="flex h-9 items-center gap-1.5 rounded-lg px-2.5 text-xs font-medium text-foreground-muted hover:text-foreground focus-visible:ring-2 focus-visible:ring-accent focus-visible:outline-none disabled:opacity-40 transition-colors"
           >
-            <Zap className="h-3.5 w-3.5" />
-            Simulate demand spike
+            <Zap className={`h-3.5 w-3.5 ${isPending ? "animate-spin text-amber-400" : ""}`} />
+            {isPending && phase === "normal" ? "Triggering..." : "Simulate demand spike"}
           </button>
           <button
             type="button"
-            onClick={resetDemo}
-            className="flex h-9 items-center gap-1.5 rounded-lg px-2.5 text-xs font-medium text-foreground-muted focus-visible:ring-2 focus-visible:ring-accent focus-visible:outline-none"
+            onClick={handleReset}
+            disabled={isPending}
+            className="flex h-9 items-center gap-1.5 rounded-lg px-2.5 text-xs font-medium text-foreground-muted hover:text-foreground focus-visible:ring-2 focus-visible:ring-accent focus-visible:outline-none transition-colors"
           >
             <RotateCcw className="h-3.5 w-3.5" />
             Reset demo

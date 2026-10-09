@@ -123,6 +123,8 @@ export function RealtimeVideoAnalyzer() {
   const lastProcessTimes = useRef<Record<string, number>>({});
   const fpsFrameCounters = useRef<Record<string, number>>({});
   const fpsLastCalcTimes = useRef<Record<string, number>>({});
+  const lastTelemetryEmitTimes = useRef<Record<string, number>>({});
+  const lastTelemetryTrackCounts = useRef<Record<string, number>>({});
 
   const selectedCamConfig =
     ALL_CAMERA_CONFIGS.find((c) => c.id === selectedCamId) ?? ALL_CAMERA_CONFIGS[0];
@@ -206,7 +208,7 @@ export function RealtimeVideoAnalyzer() {
           }));
 
           // Render preview canvas if this camera is currently selected in UI
-          if (camId === selectedCamId && previewCanvasRef.current && video.videoWidth && video.videoHeight) {
+          if (camId === selectedCamId && previewCanvasRef.current && video.videoWidth > 0 && video.videoHeight > 0) {
             const canvas = previewCanvasRef.current;
             const ctx = canvas.getContext("2d");
             if (ctx) {
@@ -241,44 +243,54 @@ export function RealtimeVideoAnalyzer() {
             }
           }
 
-          // Propagate REAL_VIDEO telemetry to simulationStore & Graph Engines
-          const store = useSimulationStore.getState();
-          const targetZoneId = cam.zoneId;
-          const currentPeopleCount = res.tracks.length * 1250 + 12000;
-          const occupancy = Math.min(100, Math.round((currentPeopleCount / 50000) * 100));
+          // Throttle store state updates: emit only if track count changed or >= 1.5s elapsed
+          const lastEmit = lastTelemetryEmitTimes.current[camId] ?? 0;
+          const lastCount = lastTelemetryTrackCounts.current[camId] ?? -1;
+          const currentTracks = res.tracks.length;
+          const shouldEmit = currentTracks !== lastCount || now - lastEmit >= 1500;
 
-          const computedState = computeZoneCrowdState(
-            { zoneId: targetZoneId, name: targetZoneId, capacity: 50000 },
-            {
-              zoneId: targetZoneId,
-              cameraId: cam.id,
-              personCount: res.tracks.length,
-              densityPerSqMeter: res.rawTelemetry.densityPerSqMeter,
-              confidencePercent: res.rawTelemetry.confidencePercent,
+          if (shouldEmit) {
+            lastTelemetryEmitTimes.current[camId] = now;
+            lastTelemetryTrackCounts.current[camId] = currentTracks;
+
+            const store = useSimulationStore.getState();
+            const targetZoneId = cam.zoneId;
+            const currentPeopleCount = currentTracks * 1250 + 12000;
+            const occupancy = Math.min(100, Math.round((currentPeopleCount / 50000) * 100));
+
+            const computedState = computeZoneCrowdState(
+              { zoneId: targetZoneId, name: targetZoneId, capacity: 50000 },
+              {
+                zoneId: targetZoneId,
+                cameraId: cam.id,
+                personCount: currentTracks,
+                densityPerSqMeter: res.rawTelemetry.densityPerSqMeter,
+                confidencePercent: res.rawTelemetry.confidencePercent,
+                source: "CV",
+                trackIds: res.tracks.map((t) => t.trackId),
+                timestamp: Date.now(),
+              },
+              store.liveCrowdStates[targetZoneId]
+            );
+
+            store.updateZoneCrowdState(targetZoneId, {
+              ...computedState,
+              peopleCount: currentPeopleCount,
+              occupancyPercent: occupancy,
               source: "CV",
-              trackIds: res.tracks.map((t) => t.trackId),
-              timestamp: Date.now(),
-            },
-            store.liveCrowdStates[targetZoneId]
-          );
+              confidencePercent: res.rawTelemetry.confidencePercent,
+              anonymousTrackIds: res.tracks.map((t) => t.trackId),
+            });
 
-          store.updateZoneCrowdState(targetZoneId, {
-            ...computedState,
-            peopleCount: currentPeopleCount,
-            occupancyPercent: occupancy,
-            source: "CV",
-            confidencePercent: res.rawTelemetry.confidencePercent,
-            anonymousTrackIds: res.tracks.map((t) => t.trackId),
-          });
-
-          // Propagate real video perception directly to camera-mapped edges!
-          store.updateCameraTelemetry(
-            cam.id,
-            res.tracks.length,
-            res.rawTelemetry.confidencePercent ?? 92,
-            res.tracks.map((t) => t.trackId),
-            "REAL_VIDEO"
-          );
+            // Propagate real video perception directly to camera-mapped edges!
+            store.updateCameraTelemetry(
+              cam.id,
+              currentTracks,
+              res.rawTelemetry.confidencePercent ?? 92,
+              res.tracks.map((t) => t.trackId),
+              "REAL_VIDEO"
+            );
+          }
         }
       }
 

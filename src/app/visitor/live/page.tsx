@@ -1,5 +1,6 @@
 "use client";
 
+import { useEffect } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Check, ChevronRight, Clock, IndianRupee, MapPinned, Navigation } from "lucide-react";
@@ -48,6 +49,12 @@ export default function LiveJourneyPage() {
   const setGate = useVisitorStore((state) => state.setGate);
   const keepOriginalPlan = useVisitorStore((state) => state.keepOriginalPlan);
 
+  useEffect(() => {
+    if (journeyStarted && !activeJourney?.journeyActive) {
+      startActiveJourney("south", "central");
+    }
+  }, [journeyStarted, activeJourney?.journeyActive, startActiveJourney]);
+
   if (!journey) {
     return (
       <div>
@@ -91,10 +98,6 @@ export default function LiveJourneyPage() {
     nearVenue && alternative !== null && recommendedGate.id !== journey.gate.id;
 
   const handleSwitchGate = () => setGate(recommendedGate.id);
-
-  if (journeyStarted && !activeJourney?.journeyActive) {
-    startActiveJourney("south", "central");
-  }
 
   return (
     <div>
