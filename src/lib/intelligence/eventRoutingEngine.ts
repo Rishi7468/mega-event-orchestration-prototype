@@ -43,51 +43,178 @@ type GraphCandidateDefinition = {
   zonePath: string[];
 };
 
-const CANONICAL_GRAPH_CANDIDATES: GraphCandidateDefinition[] = [
-  {
-    id: "route-central-direct",
-    name: "Central Zone Direct Corridor",
-    originZoneId: "south",
-    destinationZoneId: "central",
-    edgeIds: ["edge-south-gate-a", "edge-gate-a-sangam"],
-    zonePath: ["south", "central"],
-  },
-  {
-    id: "route-east-bypass",
-    name: "East Sector Bypass Corridor",
-    originZoneId: "south",
-    destinationZoneId: "central",
-    edgeIds: ["edge-south-east", "edge-east-sangam"],
-    zonePath: ["south", "east"],
-  },
-  {
-    id: "route-north-ring",
-    name: "North Ring Approach Corridor",
-    originZoneId: "south",
-    destinationZoneId: "central",
-    edgeIds: ["edge-south-north", "edge-north-gate-b", "edge-gate-b-sangam"],
-    zonePath: ["south", "north"],
-  },
-];
-
-const NORTH_ORIGIN_GRAPH_CANDIDATES: GraphCandidateDefinition[] = [
-  {
-    id: "route-north-direct",
-    name: "North Zone Gate B Direct",
-    originZoneId: "north",
-    destinationZoneId: "central",
-    edgeIds: ["edge-north-gate-b", "edge-gate-b-sangam"],
-    zonePath: ["north"],
-  },
-  {
-    id: "route-north-east-bypass",
-    name: "North-East Outer Perimeter Bypass",
-    originZoneId: "north",
-    destinationZoneId: "central",
-    edgeIds: ["edge-north-east", "edge-east-sangam"],
-    zonePath: ["north", "east"],
-  },
-];
+const ROUTE_CANDIDATES_BY_PAIR: Record<string, GraphCandidateDefinition[]> = {
+  "south-central": [
+    {
+      id: "route-central-direct",
+      name: "Central Zone Direct Corridor",
+      originZoneId: "south",
+      destinationZoneId: "central",
+      edgeIds: ["edge-south-gate-a", "edge-gate-a-sangam"],
+      zonePath: ["south", "central"],
+    },
+    {
+      id: "route-east-bypass",
+      name: "East Sector Bypass Corridor",
+      originZoneId: "south",
+      destinationZoneId: "central",
+      edgeIds: ["edge-south-east", "edge-east-sangam"],
+      zonePath: ["south", "east"],
+    },
+    {
+      id: "route-north-ring",
+      name: "North Ring Approach Corridor",
+      originZoneId: "south",
+      destinationZoneId: "central",
+      edgeIds: ["edge-south-north", "edge-north-gate-b", "edge-gate-b-sangam"],
+      zonePath: ["south", "north"],
+    },
+  ],
+  "north-central": [
+    {
+      id: "route-north-direct",
+      name: "North Zone Gate B Direct",
+      originZoneId: "north",
+      destinationZoneId: "central",
+      edgeIds: ["edge-north-gate-b", "edge-gate-b-sangam"],
+      zonePath: ["north", "central"],
+    },
+    {
+      id: "route-north-east-bypass",
+      name: "North-East Outer Perimeter Bypass",
+      originZoneId: "north",
+      destinationZoneId: "central",
+      edgeIds: ["edge-north-east", "edge-east-sangam"],
+      zonePath: ["north", "east"],
+    },
+  ],
+  "east-central": [
+    {
+      id: "route-east-direct",
+      name: "East Sector Sangam Approach",
+      originZoneId: "east",
+      destinationZoneId: "central",
+      edgeIds: ["edge-east-sangam"],
+      zonePath: ["east", "central"],
+    },
+    {
+      id: "route-east-north-bypass",
+      name: "East-North Perimeter Ring Bypass",
+      originZoneId: "east",
+      destinationZoneId: "central",
+      edgeIds: ["edge-north-east", "edge-north-gate-b", "edge-gate-b-sangam"],
+      zonePath: ["east", "north"],
+    },
+  ],
+  "south-east": [
+    {
+      id: "route-south-east-direct",
+      name: "South to East Sector Direct Link",
+      originZoneId: "south",
+      destinationZoneId: "east",
+      edgeIds: ["edge-south-east"],
+      zonePath: ["south", "east"],
+    },
+  ],
+  "south-north": [
+    {
+      id: "route-south-north-direct",
+      name: "South to North Outer Ring Corridor",
+      originZoneId: "south",
+      destinationZoneId: "north",
+      edgeIds: ["edge-south-north"],
+      zonePath: ["south", "north"],
+    },
+  ],
+  "north-east": [
+    {
+      id: "route-north-east-direct",
+      name: "North to East Perimeter Link",
+      originZoneId: "north",
+      destinationZoneId: "east",
+      edgeIds: ["edge-north-east"],
+      zonePath: ["north", "east"],
+    },
+  ],
+  "central-south": [
+    {
+      id: "route-central-south-direct",
+      name: "Central to South Transit Corridor",
+      originZoneId: "central",
+      destinationZoneId: "south",
+      edgeIds: ["edge-gate-a-sangam", "edge-south-gate-a"],
+      zonePath: ["central", "south"],
+    },
+    {
+      id: "route-central-south-east-bypass",
+      name: "Central to South East Bypass",
+      originZoneId: "central",
+      destinationZoneId: "south",
+      edgeIds: ["edge-east-sangam", "edge-south-east"],
+      zonePath: ["central", "east", "south"],
+    },
+  ],
+  "central-north": [
+    {
+      id: "route-central-north-direct",
+      name: "Central to North Hub Corridor",
+      originZoneId: "central",
+      destinationZoneId: "north",
+      edgeIds: ["edge-gate-b-sangam", "edge-north-gate-b"],
+      zonePath: ["central", "north"],
+    },
+  ],
+  "central-east": [
+    {
+      id: "route-central-east-direct",
+      name: "Central to East Sector Hub",
+      originZoneId: "central",
+      destinationZoneId: "east",
+      edgeIds: ["edge-east-sangam"],
+      zonePath: ["central", "east"],
+    },
+  ],
+  "east-south": [
+    {
+      id: "route-east-south-direct",
+      name: "East to South Sector Connector",
+      originZoneId: "east",
+      destinationZoneId: "south",
+      edgeIds: ["edge-south-east"],
+      zonePath: ["east", "south"],
+    },
+  ],
+  "east-north": [
+    {
+      id: "route-east-north-direct",
+      name: "East to North Perimeter Connector",
+      originZoneId: "east",
+      destinationZoneId: "north",
+      edgeIds: ["edge-north-east"],
+      zonePath: ["east", "north"],
+    },
+  ],
+  "north-south": [
+    {
+      id: "route-north-south-direct",
+      name: "North to South Ring Expressway",
+      originZoneId: "north",
+      destinationZoneId: "south",
+      edgeIds: ["edge-south-north"],
+      zonePath: ["north", "south"],
+    },
+  ],
+  "south-south": [
+    {
+      id: "route-south-temple-direct",
+      name: "South Hub Sacred Pathway",
+      originZoneId: "south",
+      destinationZoneId: "south",
+      edgeIds: ["edge-south-temple"],
+      zonePath: ["south"],
+    },
+  ],
+};
 
 /**
  * Calculates event-aware candidate routes over the local pedestrian graph
@@ -101,8 +228,10 @@ export function calculateEventAwareRoutes(
   activeIncidentsZoneIds: string[] = [],
   edgeCrowdStates: Record<string, EdgeCrowdState> = {}
 ): EventAwareRoutingResult {
+  const pairKey = `${originZoneId}-${destinationZoneId}`;
   const pool =
-    originZoneId === "north" ? NORTH_ORIGIN_GRAPH_CANDIDATES : CANONICAL_GRAPH_CANDIDATES;
+    ROUTE_CANDIDATES_BY_PAIR[pairKey] ??
+    ROUTE_CANDIDATES_BY_PAIR["south-central"];
 
   const scoredCandidates: EventAwareRouteCandidate[] = pool.map((candDef) => {
     // Resolve graph edges for this candidate path

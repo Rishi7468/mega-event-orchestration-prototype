@@ -13,6 +13,7 @@ import {
   Users,
   Navigation,
 } from "lucide-react";
+import { VisitorInteractiveMap } from "@/components/map";
 import { Button, Card, Chip, SectionHeading, StickyActions } from "@/components/shared";
 import { JourneyTimeline, VisitorPageHeader } from "@/components/visitor";
 import { useTripIntent } from "@/hooks/useTripIntent";
@@ -24,7 +25,7 @@ const congestionLabel = { low: "Light", medium: "Moderate", high: "Heavy" } as c
 
 export default function JourneyPlannerPage() {
   const router = useRouter();
-  const { journey, journeyStarted } = useVisitorJourney();
+  const { journey, journeyStarted, zoneSnapshots, routes: simulationRoutes } = useVisitorJourney();
   const { origin, destination, inboundLeg } = useTripIntent();
   const startJourney = useVisitorStore((state) => state.startJourney);
   const eventRouting = useSimulationStore((state) => state.eventRouting);
@@ -50,6 +51,10 @@ export default function JourneyPlannerPage() {
     router.push("/visitor/live");
   };
 
+  const altCandidate = eventRouting?.candidates?.find(
+    (c) => c.id !== eventRouting.recommendedRoute?.id
+  );
+
   return (
     <div>
       <VisitorPageHeader
@@ -59,6 +64,24 @@ export default function JourneyPlannerPage() {
       />
 
       <div className="space-y-5">
+        {/* INTERACTIVE VISITOR MAP */}
+        {destination && (
+          <VisitorInteractiveMap
+            destination={destination}
+            routeWaypoints={eventRouting?.recommendedRoute?.waypoints}
+            alternativeWaypoints={altCandidate?.waypoints}
+            originZoneId={journey.zoneId}
+            snapshots={zoneSnapshots}
+            routes={simulationRoutes}
+            height={220}
+            interactive
+            etaMinutes={eventRouting?.recommendedRoute?.effectiveEtaMinutes ?? journey.totalMinutes}
+            distanceMeters={eventRouting?.recommendedRoute?.distanceMeters}
+            crowdLevel={eventRouting?.recommendedRoute?.dominantCrowdLevel}
+            routeName={eventRouting?.recommendedRoute?.name ?? journey.routeName}
+          />
+        )}
+
         {/* Getting to the destination city — the inbound leg, kept visually
             separate from the local door-to-venue journey below. */}
         {inboundLeg && origin && destination && (

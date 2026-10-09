@@ -10,6 +10,7 @@ import {
   AlertTriangle,
   ShieldAlert,
 } from "lucide-react";
+import { VisitorInteractiveMap } from "@/components/map";
 import { Button, Card, Chip, SectionHeading } from "@/components/shared";
 import { VisitorPageHeader } from "@/components/visitor";
 import { mahaKumbhLandmarks } from "@/data/landmarks";
@@ -283,6 +284,35 @@ export default function MultiStopItineraryPage() {
                   destinations fit within your {availableTime} min budget.
                 </span>
               </div>
+            )}
+
+            {/* Interactive Itinerary Navigation Map */}
+            {result.stops.length > 0 && (
+              <VisitorInteractiveMap
+                destination={{
+                  id: "maha-kumbh",
+                  name: "Maha Kumbh",
+                  city: "Prayagraj",
+                  region: "Uttar Pradesh",
+                  eventType: "religious-gathering",
+                  dateRange: "13 Jan – 26 Feb",
+                  summary: "Major religious gathering",
+                  status: "normal",
+                  expectedVisitors: 4000000,
+                  demandLevel: "very-high",
+                  simulationReady: true,
+                  geo: { center: [25.4245, 81.8835], zoom: 12 },
+                  outlook: [],
+                  arrivalWindows: [],
+                }}
+                selectedLandmarkId={result.stops[0].landmarkId}
+                routeWaypoints={result.stops[0].legFromPrevious?.waypoints}
+                originZoneId={startZoneId}
+                height={200}
+                interactive
+                etaMinutes={result.totalDurationMinutes}
+                routeName={`Multi-Stop Sequence (${result.fittedCount} Stops)`}
+              />
             )}
 
             {/* Sequence List */}

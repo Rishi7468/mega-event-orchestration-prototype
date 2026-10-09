@@ -3,6 +3,7 @@
 import { getDestinationGeography } from "@/data/geography";
 import type { Destination, JourneyStep, TransportRoute, VenueGate, ZoneSnapshot } from "@/types";
 import { DestinationMap } from "./DestinationMap";
+import { useSimulationStore } from "@/store/simulationStore";
 
 type JourneyRouteMapProps = {
   destination: Destination;
@@ -34,8 +35,14 @@ export function JourneyRouteMap({
   zoneNames = {},
 }: JourneyRouteMapProps) {
   const geography = getDestinationGeography(destination.id);
+  const eventRouting = useSimulationStore((state) => state.eventRouting);
+  const activeJourney = useSimulationStore((state) => state.activeJourney);
+
   const progress =
     steps.length <= 1 ? 0 : Math.min(1, Math.max(0, currentStepIndex / (steps.length - 1)));
+
+  const recommendedWaypoints = eventRouting?.recommendedRoute?.waypoints;
+  const pendingAltWaypoints = activeJourney?.pendingAlternativeRoute?.waypoints;
 
   return (
     <div className="overflow-hidden rounded-2xl border border-border bg-surface">
@@ -51,6 +58,8 @@ export function JourneyRouteMap({
         gates={[gate]}
         layers={["corridors", "venue", "zones"]}
         focusRouteId={routeId}
+        routeWaypoints={recommendedWaypoints}
+        alternativeWaypoints={pendingAltWaypoints}
         progressFraction={progress}
       />
       <div className="flex items-center justify-between gap-3 border-t border-border px-3 py-2 text-[11px] text-foreground-muted">

@@ -152,10 +152,30 @@ export const MAHA_KUMBH_NODES: PedestrianNode[] = [
     coordinates: [25.4228, 81.8874],
     type: "venue",
   },
+  {
+    id: "node-temple",
+    name: "Akshayavat Sacred Temple",
+    zoneId: "south",
+    coordinates: [25.3992, 81.8746],
+    type: "landmark",
+  },
 ];
 
 // Raw edge geometry definitions
 const RAW_EDGES_GEOMETRY = [
+  {
+    id: "edge-south-temple",
+    name: "South Hub to Sacred Temple Pathway",
+    fromNodeId: "node-south-hub",
+    toNodeId: "node-temple",
+    zoneIds: ["south"],
+    geometry: [
+      [25.3892, 81.8716],
+      [25.3992, 81.8746],
+    ] as LatLng[],
+    cameraIds: ["cam-04"],
+    corridorType: "direct" as const,
+  },
   {
     id: "edge-south-gate-a",
     name: "South-Central Main Corridor",

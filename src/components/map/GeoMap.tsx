@@ -81,6 +81,12 @@ export type GeoMapProps = {
   highlightZoneId?: string | null;
   /** Draws one corridor prominently and dims the rest — the visitor's route. */
   focusRouteId?: string | null;
+  /** Custom polyline path waypoints from graph routing engines. */
+  routeWaypoints?: LatLng[];
+  /** Optional alternative bypass route polyline path waypoints. */
+  alternativeWaypoints?: LatLng[];
+  /** Custom map pins (origin, destination landmark, stop points). */
+  customMarkers?: { id: string; position: LatLng; label: string; iconType?: "origin" | "destination" | "waypoint" | "landmark" }[];
   /** 0–1 along the focused corridor; renders a position marker. */
   progressFraction?: number | null;
   ariaLabel: string;
@@ -121,6 +127,9 @@ export default function GeoMap({
   layers = ["zones", "venue", "corridors"],
   highlightZoneId,
   focusRouteId,
+  routeWaypoints,
+  alternativeWaypoints,
+  customMarkers = [],
   progressFraction,
   ariaLabel,
 }: GeoMapProps) {
@@ -352,11 +361,31 @@ export default function GeoMap({
       }).addTo(overlay);
     }
 
+    // Draw alternative bypass polyline if provided
+    if (alternativeWaypoints && alternativeWaypoints.length >= 2) {
+      L.polyline(alternativeWaypoints, {
+        color: risk.medium,
+        weight: 3,
+        opacity: 0.6,
+        dashArray: "6 6",
+      }).addTo(overlay);
+    }
+
+    // Draw primary graph route polyline if provided
+    if (routeWaypoints && routeWaypoints.length >= 2) {
+      L.polyline(routeWaypoints, {
+        color: accent,
+        weight: 5,
+        opacity: 0.9,
+      }).addTo(overlay);
+    }
+
     // Where the visitor currently is along their own corridor.
     if (focusRouteId && progressFraction !== null && progressFraction !== undefined) {
       const corridor = geography.corridors.find((item) => item.routeId === focusRouteId);
-      if (corridor) {
-        const position = pointAlongPath(corridor.path, progressFraction);
+      const waypoints = routeWaypoints ?? corridor?.path;
+      if (waypoints && waypoints.length >= 2) {
+        const position = pointAlongPath(waypoints, progressFraction);
         L.circleMarker(position, {
           radius: 7,
           color: surface,
@@ -365,6 +394,35 @@ export default function GeoMap({
           fillOpacity: 1,
         }).addTo(overlay);
       }
+    }
+
+    // Custom Map Pins (Origin, Destination Landmark, Stop Nodes)
+    if (customMarkers && customMarkers.length > 0) {
+      customMarkers.forEach((markerData) => {
+        const isDestination = markerData.iconType === "destination" || markerData.iconType === "landmark";
+        const isOrigin = markerData.iconType === "origin";
+
+        const markerColor = isDestination ? risk.high : isOrigin ? risk.low : accent;
+
+        L.circleMarker(markerData.position, {
+          radius: isDestination ? 7 : 5,
+          color: surface,
+          weight: 2.5,
+          fillColor: markerColor,
+          fillOpacity: 1,
+        }).addTo(overlay);
+
+        L.marker(markerData.position, {
+          interactive: false,
+          keyboard: false,
+          icon: labelIcon(
+            `<span class="meho-point-label" style="--chip-ink:${ink};--chip-surface:${surface}">
+               ${markerData.label}
+             </span>`,
+            "meho-map-label meho-map-label--below"
+          ),
+        }).addTo(overlay);
+      });
     }
   }, [
     geography,
@@ -376,6 +434,9 @@ export default function GeoMap({
     layers,
     highlightZoneId,
     focusRouteId,
+    routeWaypoints,
+    alternativeWaypoints,
+    customMarkers,
     progressFraction,
     risk,
     ink,
