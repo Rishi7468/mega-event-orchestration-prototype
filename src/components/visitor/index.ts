@@ -20,3 +20,4 @@ export { LiveConditions } from "./LiveConditions";
 export { LiveEventCard } from "./LiveEventCard";
 export { PlanComparison } from "./PlanComparison";
 export { DemoControls } from "./DemoControls";
+export { VisitorResetControl } from "./VisitorResetControl";

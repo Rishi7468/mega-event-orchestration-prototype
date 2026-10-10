@@ -55,3 +55,13 @@ export {
 } from "./cameras";
 export { incidents } from "./incidents";
 export { visitorProfile } from "./visitor";
+export {
+  CHINNASWAMY_INCIDENT_MANIFEST,
+  type ProvenanceCategory,
+  type HistoricalIncidentManifest,
+  type DocumentedMilestone,
+} from "./sourceManifest";
+export {
+  CANONICAL_REPLAY_DATASET,
+  type CanonicalReplayRecord,
+} from "./canonicalReplayDataset";

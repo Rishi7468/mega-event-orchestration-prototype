@@ -12,6 +12,7 @@ import {
   LiveEventCard,
   NextStepCard,
   VisitorPageHeader,
+  VisitorResetControl,
 } from "@/components/visitor";
 import { venue, zones } from "@/data";
 import { getZoneSnapshot } from "@/lib/conditions";
@@ -58,7 +59,11 @@ export default function LiveJourneyPage() {
   if (!journey) {
     return (
       <div>
-        <VisitorPageHeader title="Live Journey" backHref="/visitor" />
+        <VisitorPageHeader
+          title="Live Journey"
+          backHref="/visitor"
+          action={<VisitorResetControl />}
+        />
         <Card className="p-5 text-center">
           <p className="text-sm text-foreground-muted">
             Once you&apos;ve built a plan, this screen guides you step by step.
@@ -74,7 +79,11 @@ export default function LiveJourneyPage() {
   if (!journeyStarted) {
     return (
       <div>
-        <VisitorPageHeader title="Live Journey" backHref="/visitor" />
+        <VisitorPageHeader
+          title="Live Journey"
+          backHref="/visitor"
+          action={<VisitorResetControl />}
+        />
         <Card className="p-5 text-center">
           <p className="text-sm text-foreground-muted">
             Your journey to {journey.gate.name} is ready. Start it when you set off and we&apos;ll
@@ -105,49 +114,69 @@ export default function LiveJourneyPage() {
         title="Live Journey"
         subtitle={isFinal ? "You've arrived" : `Arriving ${journey.arrivalTime}`}
         backHref="/visitor"
+        action={<VisitorResetControl />}
       />
 
       <div className="space-y-4">
-        {/* DYNAMIC LIVE REROUTE NOTIFICATION CARD */}
-        {activeJourney?.rerouteAvailable && activeJourney.pendingAlternativeRoute ? (
-          <Card className="border-risk-medium/30 bg-risk-medium-bg p-4 animate-fade-up">
-            <div className="flex items-start gap-3">
-              <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-risk-medium/15 text-risk-medium">
-                <Navigation className="h-5 w-5" />
-              </div>
-              <div className="min-w-0 flex-1">
-                <div className="flex items-center justify-between gap-2">
-                  <span className="text-xs font-semibold text-risk-medium">
-                    Route Update Recommended
-                  </span>
-                  <Chip tone="warning">Surge Detected</Chip>
+        {/* DYNAMIC LIVE REROUTE NOTIFICATION CARD WITH REAL MEASURED LATENCY */}
+        {activeJourney?.rerouteAvailable && activeJourney.pendingAlternativeRoute ? (() => {
+          const lastActionDispatchedAt = useSimulationStore.getState().lastActionDispatchedAt;
+          const latencyMs = lastActionDispatchedAt ? Math.max(0, Date.now() - lastActionDispatchedAt) : null;
+          const isWithinSla = latencyMs !== null ? latencyMs < 5000 : true;
+
+          return (
+            <Card className="border-risk-medium/30 bg-risk-medium-bg p-4 animate-fade-up">
+              <div className="flex items-start gap-3">
+                <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-risk-medium/15 text-risk-medium">
+                  <Navigation className="h-5 w-5" />
                 </div>
-                <p className="mt-1 text-sm font-semibold text-foreground">
-                  {activeJourney.rerouteReason}
-                </p>
-                <p className="mt-1 text-xs leading-relaxed text-foreground-muted">
-                  Bypass Route: <span className="font-semibold text-foreground">{activeJourney.pendingAlternativeRoute.name}</span> ({activeJourney.pendingAlternativeRoute.effectiveEtaMinutes} min · {activeJourney.pendingAlternativeRoute.distanceMeters}m). Avoids predicted density in {activeJourney.pendingAlternativeRoute.zonePath.join(" → ")}.
-                </p>
-                <div className="mt-3 flex items-center gap-2">
-                  <Button
-                    variant="primary"
-                    className="flex-1"
-                    onClick={acceptReroute}
-                  >
-                    Follow new route
-                  </Button>
-                  <Button
-                    variant="secondary"
-                    className="flex-1"
-                    onClick={dismissReroute}
-                  >
-                    Keep current route
-                  </Button>
+                <div className="min-w-0 flex-1">
+                  <div className="flex items-center justify-between gap-2">
+                    <span className="text-xs font-semibold text-risk-medium">
+                      Route Update Recommended
+                    </span>
+                    <Chip tone="warning">Surge Detected</Chip>
+                  </div>
+                  <p className="mt-1 text-sm font-semibold text-foreground">
+                    {activeJourney.rerouteReason}
+                  </p>
+                  <p className="mt-1 text-xs leading-relaxed text-foreground-muted">
+                    Bypass Route: <span className="font-semibold text-foreground">{activeJourney.pendingAlternativeRoute.name}</span> ({activeJourney.pendingAlternativeRoute.effectiveEtaMinutes} min · {activeJourney.pendingAlternativeRoute.distanceMeters}m). Avoids predicted density in {activeJourney.pendingAlternativeRoute.zonePath.join(" → ")}.
+                  </p>
+
+                  {/* REAL MEASURED PROPAGATION LATENCY SLA BADGE */}
+                  {latencyMs !== null && (
+                    <div className="mt-2.5 rounded-md bg-background/80 border border-border/60 p-2 text-[11px] font-mono flex flex-wrap items-center justify-between gap-1">
+                      <span className="text-foreground-muted">
+                        Measured Operator-to-Visitor Propagation:
+                      </span>
+                      <span className={`font-bold ${isWithinSla ? "text-emerald-400" : "text-amber-400"}`}>
+                        {latencyMs}ms ({isWithinSla ? "PASS: <5.0s SLA" : "HIGH LATENCY"})
+                      </span>
+                    </div>
+                  )}
+
+                  <div className="mt-3 flex items-center gap-2">
+                    <Button
+                      variant="primary"
+                      className="flex-1"
+                      onClick={acceptReroute}
+                    >
+                      Follow new route
+                    </Button>
+                    <Button
+                      variant="secondary"
+                      className="flex-1"
+                      onClick={dismissReroute}
+                    >
+                      Keep current route
+                    </Button>
+                  </div>
                 </div>
               </div>
-            </div>
-          </Card>
-        ) : showLiveEventCard ? (
+            </Card>
+          );
+        })() : showLiveEventCard ? (
           <LiveEventCard
             currentGate={journey.gate}
             alternativeGate={recommendedGate}

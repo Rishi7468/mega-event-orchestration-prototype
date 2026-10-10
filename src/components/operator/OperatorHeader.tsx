@@ -30,7 +30,7 @@ export function OperatorHeader({ event }: OperatorHeaderProps) {
     <header className="flex items-center justify-between border-b border-border bg-surface px-6 py-3">
       <div>
         <h1 className="text-sm font-semibold tracking-wide text-foreground">
-          MEGA EVENT OPERATIONS COMMAND CENTER
+          MAHAKUMBH COMMAND CENTER
         </h1>
         <p className="text-xs text-foreground-muted">{event.name}</p>
       </div>

@@ -1,7 +1,8 @@
 "use client";
 
 import { useEventAuthoringStore } from "@/store/eventAuthoringStore";
-import { Trash2, Copy, RefreshCw, X, MapPin, Navigation, Layers, Paintbrush, Sparkles, Compass } from "lucide-react";
+import { GeometryEngine } from "@/lib/spatial/geometryEngine";
+import { Trash2, Copy, RefreshCw, X, MapPin, Navigation, Layers, Paintbrush, Sparkles, Compass, CheckCircle2, ShieldCheck, Square } from "lucide-react";
 
 type ObjectInspectorPanelProps = {
   selectedObjectType: "asset" | "zone" | "route" | "paint" | "anchor" | "region" | null;
@@ -20,6 +21,15 @@ export function ObjectInspectorPanel({
     routes,
     paintedAreas,
     anchors,
+    regionPolygon,
+    isRegionConfirmed,
+    locationName,
+    confirmRegion,
+    unconfirmRegion,
+    clearRegionPolygon,
+    splitRegionIntoZones,
+    isViewportLocked,
+    toggleViewportLock,
     updateAsset,
     updateAssetPosition,
     duplicateAsset,
@@ -45,13 +55,14 @@ export function ObjectInspectorPanel({
 
   if (!selectedObjectType || !selectedObjectId) return null;
 
+  const isRegion = selectedObjectType === "region";
   const targetAsset = selectedObjectType === "asset" ? assets.find((a) => a.id === selectedObjectId) : null;
   const targetZone = selectedObjectType === "zone" ? zones.find((z) => z.id === selectedObjectId) : null;
   const targetRoute = selectedObjectType === "route" ? routes.find((r) => r.id === selectedObjectId) : null;
   const targetPaint = selectedObjectType === "paint" ? (paintedAreas || []).find((p) => p.id === selectedObjectId) : null;
   const targetAnchor = selectedObjectType === "anchor" ? (anchors || []).find((a) => a.id === selectedObjectId) : null;
 
-  if (!targetAsset && !targetZone && !targetRoute && !targetPaint && !targetAnchor) return null;
+  if (!isRegion && !targetAsset && !targetZone && !targetRoute && !targetPaint && !targetAnchor) return null;
 
   return (
     <div className="rounded-2xl border border-border bg-surface p-4 shadow-md space-y-3 text-xs">
@@ -61,6 +72,7 @@ export function ObjectInspectorPanel({
           {selectedObjectType === "zone" && <Layers className="h-4 w-4 text-accent" />}
           {selectedObjectType === "route" && <Navigation className="h-4 w-4 text-accent" />}
           {selectedObjectType === "paint" && <Paintbrush className="h-4 w-4 text-cyan-400" />}
+          {selectedObjectType === "region" && <Square className="h-4 w-4 text-indigo-400" />}
           <h3 className="font-extrabold text-foreground uppercase tracking-wider font-mono">
             OBJECT INSPECTOR — {selectedObjectType.toUpperCase()}
           </h3>
@@ -73,6 +85,101 @@ export function ObjectInspectorPanel({
           <X className="h-4 w-4" />
         </button>
       </div>
+
+      {/* INSPECT EVENT REGION PERIMETER */}
+      {isRegion && (
+        <div className="space-y-3 font-mono">
+          <div>
+            <label className="text-[10px] font-bold text-foreground-muted block mb-1">Perimeter Designation</label>
+            <input
+              type="text"
+              value={`Authoritative Perimeter — ${locationName || "Prayagraj Mahakumbh"}`}
+              readOnly
+              className="w-full rounded-lg border border-border bg-surface-muted/60 px-2.5 py-1 text-xs font-bold text-indigo-300"
+            />
+          </div>
+
+          <div className="grid grid-cols-2 gap-2">
+            <div>
+              <label className="text-[10px] font-bold text-foreground-muted block mb-1">Status</label>
+              <span className={`text-xs font-bold uppercase block pt-0.5 ${
+                isRegionConfirmed ? "text-emerald-400" : "text-amber-400"
+              }`}>
+                {isRegionConfirmed ? "Confirmed Boundary" : "Draft Perimeter"}
+              </span>
+            </div>
+            <div>
+              <label className="text-[10px] font-bold text-foreground-muted block mb-1">Vertices</label>
+              <span className="text-xs font-bold text-foreground block pt-0.5">
+                {regionPolygon.length} Boundary Coordinates
+              </span>
+            </div>
+          </div>
+
+          {regionPolygon.length >= 3 && (
+            <div className="grid grid-cols-2 gap-2">
+              <div>
+                <label className="text-[10px] font-bold text-foreground-muted block mb-1">Calculated Area</label>
+                <span className="text-xs font-bold text-foreground block pt-0.5">
+                  {GeometryEngine.calculateAreaSqKm(regionPolygon)} km²
+                </span>
+              </div>
+              <div>
+                <label className="text-[10px] font-bold text-foreground-muted block mb-1">Perimeter Length</label>
+                <span className="text-xs font-bold text-foreground block pt-0.5">
+                  {GeometryEngine.calculatePerimeterKm(regionPolygon).toFixed(2)} km
+                </span>
+              </div>
+            </div>
+          )}
+
+          <div className="flex flex-col gap-2 pt-2 border-t border-border">
+            {!isRegionConfirmed && regionPolygon.length >= 3 && (
+              <button
+                type="button"
+                onClick={() => confirmRegion()}
+                className="w-full flex items-center justify-center gap-1.5 rounded-lg bg-emerald-500 py-1.5 font-bold text-slate-950 hover:bg-emerald-400 transition-all shadow-md"
+              >
+                <CheckCircle2 className="h-4 w-4" />
+                <span>CONFIRM REGION</span>
+              </button>
+            )}
+
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                onClick={toggleViewportLock}
+                className="flex-1 flex items-center justify-center gap-1 rounded-lg border border-border bg-surface-muted py-1.5 text-xs font-semibold text-foreground hover:bg-surface-muted/80 transition-all"
+              >
+                {isViewportLocked ? "🔓 Unlock Camera" : "🔒 Lock Camera"}
+              </button>
+
+              <button
+                type="button"
+                onClick={() => splitRegionIntoZones(4)}
+                disabled={!isRegionConfirmed || regionPolygon.length < 3}
+                className="flex-1 flex items-center justify-center gap-1 rounded-lg border border-indigo-500/40 bg-indigo-500/10 py-1.5 text-xs font-bold text-indigo-300 hover:bg-indigo-500/20 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                title="Partition event region into 4 operational quadrants"
+              >
+                <span>Auto-Partition 4 Sectors</span>
+              </button>
+            </div>
+
+            <button
+              type="button"
+              onClick={() => {
+                unconfirmRegion();
+                clearRegionPolygon();
+                onClose();
+              }}
+              className="flex items-center justify-center gap-1 rounded-lg border border-rose-500/30 bg-rose-500/10 py-1.5 font-bold text-rose-400 hover:bg-rose-500/20 transition-all"
+            >
+              <Trash2 className="h-3.5 w-3.5" />
+              <span>Clear / Redraw Region</span>
+            </button>
+          </div>
+        </div>
+      )}
 
       {/* INSPECT PAINTED MASK AREA */}
       {targetPaint && (

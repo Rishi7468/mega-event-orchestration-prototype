@@ -20,4 +20,5 @@ export { EventPulseCard } from "./EventPulseCard";
 export { SituationalIntelligencePanel } from "./SituationalIntelligencePanel";
 export { BeforeAfterDeltaCard } from "./BeforeAfterDeltaCard";
 export { ScenarioControlPanel } from "./ScenarioControlPanel";
-
+export { NonAppBroadcastPanel } from "./NonAppBroadcastPanel";
+export { IncidentReviewPanel } from "./IncidentReviewPanel";

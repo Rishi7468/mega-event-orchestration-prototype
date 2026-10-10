@@ -124,7 +124,7 @@ export function SpatialEventBuilderRework({
   };
 
   return (
-    <div className="h-[calc(100vh-3.5rem)] flex flex-col overflow-hidden font-sans space-y-2 p-1">
+    <div className="h-[calc(100dvh-6.5rem)] flex flex-col overflow-hidden font-sans space-y-2 p-1">
       {/* 1. COMPACT COMMAND CENTER HEADER BAR */}
       <div className="rounded-xl border border-slate-800 bg-slate-900/95 px-3 py-2 shadow-md shrink-0 flex flex-wrap items-center justify-between gap-2 text-xs font-mono">
         <div className="flex items-center gap-2.5 min-w-0">
@@ -134,7 +134,7 @@ export function SpatialEventBuilderRework({
           <div className="min-w-0">
             <div className="flex items-center gap-2">
               <h1 className="text-xs font-black tracking-tight text-slate-100 uppercase truncate">
-                PRAVAAH SPATIAL COMMAND CENTER
+                MAHAKUMBH EVENT ZONE BUILDER
               </h1>
               <span
                 className={`rounded-md px-2 py-0.5 text-[9px] font-extrabold uppercase tracking-wide border ${

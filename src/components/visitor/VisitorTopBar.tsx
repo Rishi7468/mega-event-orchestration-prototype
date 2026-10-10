@@ -1,5 +1,6 @@
 import { Bell, MapPin } from "lucide-react";
 import { BrandMark } from "@/components/shared";
+import { VisitorResetControl } from "./VisitorResetControl";
 
 type VisitorTopBarProps = {
   location: string;
@@ -15,18 +16,21 @@ export function VisitorTopBar({ location, notificationCount = 0 }: VisitorTopBar
           <MapPin className="h-4 w-4 text-foreground-muted" />
           {location}
         </div>
-        <button
-          type="button"
-          aria-label="Notifications"
-          className="relative flex h-9 w-9 items-center justify-center rounded-full border border-border"
-        >
-          <Bell className="h-4 w-4 text-foreground-muted" />
-          {notificationCount > 0 && (
-            <span className="absolute -right-0.5 -top-0.5 flex h-4 w-4 items-center justify-center rounded-full bg-accent text-[10px] font-medium text-accent-foreground">
-              {notificationCount}
-            </span>
-          )}
-        </button>
+        <div className="flex items-center gap-2">
+          <VisitorResetControl variant="compact" />
+          <button
+            type="button"
+            aria-label="Notifications"
+            className="relative flex h-9 w-9 items-center justify-center rounded-full border border-border"
+          >
+            <Bell className="h-4 w-4 text-foreground-muted" />
+            {notificationCount > 0 && (
+              <span className="absolute -right-0.5 -top-0.5 flex h-4 w-4 items-center justify-center rounded-full bg-accent text-[10px] font-medium text-accent-foreground">
+                {notificationCount}
+              </span>
+            )}
+          </button>
+        </div>
       </div>
     </div>
   );

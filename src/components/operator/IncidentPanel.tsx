@@ -36,7 +36,7 @@ export function IncidentPanel() {
 
   return (
     <OperatorPanel
-      title={`Active Incidents (${activeIncidents.length})`}
+      title={`Crowd Safety Incidents (${activeIncidents.length})`}
       action={
         <div className="flex gap-1.5">
           <button

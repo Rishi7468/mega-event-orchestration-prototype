@@ -89,9 +89,9 @@ export default function InterventionsPage() {
   return (
     <div className="space-y-5">
       <div>
-        <h1 className="text-lg font-semibold text-foreground">Interventions & Actions</h1>
+        <h1 className="text-lg font-semibold text-foreground">Crowd Diversion & Safe Routes</h1>
         <p className="text-xs text-foreground-muted">
-          State-driven operational actions — real state mutations & dynamic measurement
+          Operational crowd diversion corridors, gate promotions, and safe evacuation routing for Mahakumbh
         </p>
       </div>
 

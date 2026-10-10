@@ -44,9 +44,9 @@ export default function DemandCapacityPage() {
   return (
     <div className="space-y-5">
       <div>
-        <h1 className="text-lg font-semibold text-foreground">Destination-Wide Demand Distribution</h1>
+        <h1 className="text-lg font-semibold text-foreground">Crowd Density & Stampede Risk</h1>
         <p className="text-xs text-foreground-muted">
-          Real-time demand, capacity and forecast across all zones — simulated scenario
+          Ghat-wide crowd density, holding capacity, and stampede risk forecast across all sectors
         </p>
       </div>
 

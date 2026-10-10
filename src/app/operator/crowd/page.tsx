@@ -72,9 +72,9 @@ export default function CrowdIntelligencePage() {
     <div className="space-y-5">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
-          <h1 className="text-lg font-semibold text-foreground">Crowd Intelligence</h1>
+          <h1 className="text-lg font-semibold text-foreground">Ghat Crowd Monitoring</h1>
           <p className="text-xs text-foreground-muted">
-            Site-camera observations — the raw input every forecast below is built from
+            Ghat & Sangam crowd density observation posts — real-time perimeter monitoring
           </p>
         </div>
 

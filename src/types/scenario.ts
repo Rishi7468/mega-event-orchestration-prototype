@@ -12,13 +12,29 @@ export type ScenarioStep = {
   durationMs: number;
   patch: Partial<SimulationState>;
   description?: string;
+  historicalTimestamp?: string;
+  replayTimeSeconds?: number;
+  provenance?: "REAL SOURCE DATA" | "DERIVED" | "REPLAY SIMULATED" | "THRESHOLD TRIGGER" | "UNAVAILABLE";
+  isWarningStep?: boolean;
+  isPeakStep?: boolean;
+  warningTime?: string;
+  projectedPeakTime?: string;
+  historicalFact?: string;
+  simulatedInputNote?: string;
+  canonicalRecordId?: string;
+  measurementNote?: string;
 };
 
 export type EventScenario = {
   id: string;
   name: string;
   description: string;
-  category: "congestion" | "facility" | "incident" | "stress_test";
+  category: "congestion" | "facility" | "incident" | "stress_test" | "historical_replay";
+  totalDurationSeconds?: number;
+  isHistoricalReplay?: boolean;
+  sourceManifestId?: string;
+  warningTime?: string;
+  projectedPeakTime?: string;
   steps: ScenarioStep[];
 };
 

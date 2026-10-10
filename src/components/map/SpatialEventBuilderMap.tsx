@@ -253,8 +253,9 @@ export function SpatialEventBuilderMap({
       text: `REGION PERIMETER CONFIRMED (${drawPoints.length} vertices)`,
       id: Date.now(),
     });
+    if (onSelectObject) onSelectObject("region", "main-perimeter");
     if (!keepToolActive && onToolComplete) onToolComplete("select");
-  }, [drawPoints, setRegionPolygon, confirmRegion, keepToolActive, onToolComplete]);
+  }, [drawPoints, setRegionPolygon, confirmRegion, keepToolActive, onToolComplete, onSelectObject]);
 
   const handleCancelRegion = useCallback(() => {
     setDrawPoints([]);
@@ -468,14 +469,21 @@ export function SpatialEventBuilderMap({
       // 1. REGION BOUNDARY POLYGON
       if (layersRef.current.region) {
         layersRef.current.region.clearLayers();
-        if (layerVisibility.region && regionPolygon.length >= 3) {
-          L.polygon(regionPolygon as LatLngTuple[], {
-            color: "#6366f1",
-            weight: 3.5,
-            dashArray: "8, 6",
-            fillColor: "#6366f1",
-            fillOpacity: 0.05,
+        if (layerVisibility.region && regionPolygon && regionPolygon.length >= 3) {
+          const isSelected = selectedObjectType === "region";
+          const regionPoly = L.polygon(regionPolygon as LatLngTuple[], {
+            color: isSelected ? "#38bdf8" : "#6366f1",
+            weight: isSelected ? 5 : 3.5,
+            dashArray: isSelected ? undefined : "8, 6",
+            fillColor: isSelected ? "#38bdf8" : "#6366f1",
+            fillOpacity: isSelected ? 0.2 : 0.05,
+            className: "event-region-boundary cursor-pointer",
           }).addTo(layersRef.current.region);
+
+          regionPoly.on("click", (e) => {
+            L.DomEvent.stopPropagation(e);
+            if (onSelectObject) onSelectObject("region", "main-perimeter");
+          });
         }
       }
 
@@ -1382,7 +1390,63 @@ export function SpatialEventBuilderMap({
       // 1. REGION DRAWING TOOL
       if (activeTool === "region") {
         setDrawPoints((prev) => {
+          // If clicking near first point in polygon mode, complete polygon
+          if (regionMode === "polygon" && prev.length >= 3) {
+            const firstPt = prev[0];
+            const distM = GeometryEngine.calculateDistanceMeters([lat, lng], [firstPt[0], firstPt[1]]);
+            if (distM < 40) {
+              setRegionPolygon(prev as [number, number][]);
+              confirmRegion();
+              if (layersRef.current.drawing) layersRef.current.drawing.clearLayers();
+              setLastClickToast({
+                text: `REGION PERIMETER CONFIRMED (${prev.length} vertices)`,
+                id: Date.now(),
+              });
+              if (onSelectObject) onSelectObject("region", "main-perimeter");
+              if (!keepToolActive && onToolComplete) onToolComplete("select");
+              return [];
+            }
+          }
+
           const updated = [...prev, [lat, lng] as LatLngTuple];
+
+          // Bounding Box (Rectangle) mode: 2 clicks define rectangle
+          if (regionMode === "rectangle" && updated.length >= 2) {
+            const [p1, p2] = updated;
+            const rectPoly: [number, number][] = [
+              [p1[0], p1[1]],
+              [p1[0], p2[1]],
+              [p2[0], p2[1]],
+              [p2[0], p1[1]],
+            ];
+            setRegionPolygon(rectPoly);
+            confirmRegion();
+            if (layersRef.current.drawing) layersRef.current.drawing.clearLayers();
+            setLastClickToast({
+              text: `BOUNDING BOX REGION CONFIRMED (4 vertices)`,
+              id: Date.now(),
+            });
+            if (onSelectObject) onSelectObject("region", "main-perimeter");
+            if (!keepToolActive && onToolComplete) onToolComplete("select");
+            return [];
+          }
+
+          // Radial (Circle) mode: 2 clicks define circle
+          if (regionMode === "circle" && updated.length >= 2) {
+            const [center, edge] = updated;
+            const radiusM = GeometryEngine.calculateDistanceMeters([center[0], center[1]], [edge[0], edge[1]]);
+            const circlePoly = GeometryEngine.createCirclePolygon([center[0], center[1]], Math.max(50, radiusM));
+            setRegionPolygon(circlePoly);
+            confirmRegion();
+            if (layersRef.current.drawing) layersRef.current.drawing.clearLayers();
+            setLastClickToast({
+              text: `RADIAL REGION CONFIRMED (Radius: ${radiusM}m)`,
+              id: Date.now(),
+            });
+            if (onSelectObject) onSelectObject("region", "main-perimeter");
+            if (!keepToolActive && onToolComplete) onToolComplete("select");
+            return [];
+          }
 
           import("leaflet").then((L) => {
             if (layersRef.current.drawing) {

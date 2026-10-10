@@ -173,6 +173,25 @@ export type SimulationState = {
   measurements: Measurement[];
   visitorTravelMinutes: number;
 
+  // Replay & Operational Audit Telemetry
+  isReplayMode: boolean;
+  replayScenarioTitle: string | null;
+  replayCurrentTimestamp: string | null;
+  replayWarningTime: string | null;
+  replayPeakTime: string | null;
+  lastActionDispatchedAt: number | null;
+  lastActionTitle: string | null;
+  lastActionZoneId: string | null;
+
+  setReplayMode: (
+    active: boolean,
+    title?: string | null,
+    timestamp?: string | null,
+    warningTime?: string | null,
+    peakTime?: string | null
+  ) => void;
+  markZoneRed: (zoneId: string, reason?: string) => void;
+
   updateZoneCrowdState: (zoneId: string, state: Partial<ZoneCrowdState>) => void;
   updateAllZoneCrowdStates: (states: Record<string, ZoneCrowdState>) => void;
   updateEdgeCrowdStates: (updates: Record<string, EdgeCrowdState>) => void;
@@ -300,6 +319,87 @@ export const useSimulationStore = create<SimulationState>()(
       activeInterventions: [],
       measurements: [],
       visitorTravelMinutes: 42,
+
+      isReplayMode: false,
+      replayScenarioTitle: null,
+      replayCurrentTimestamp: null,
+      replayWarningTime: null,
+      replayPeakTime: null,
+      lastActionDispatchedAt: null,
+      lastActionTitle: null,
+      lastActionZoneId: null,
+
+      setReplayMode: (active, title, timestamp, warningTime, peakTime) => {
+        set({
+          isReplayMode: active,
+          replayScenarioTitle: title ?? (active ? "Chinnaswamy 2025 Incident Replay" : null),
+          replayCurrentTimestamp: timestamp ?? null,
+          replayWarningTime: warningTime ?? null,
+          replayPeakTime: peakTime ?? null,
+        });
+      },
+
+      markZoneRed: (zoneId, reason) => {
+        const now = Date.now();
+        const triggerReason =
+          reason ?? `Operator marked ${zoneId.toUpperCase()} zone as CRITICAL emergency condition.`;
+
+        const newSnapshots = get().zoneSnapshots.map((s) =>
+          s.zoneId === zoneId
+            ? { ...s, crowdPressure: 95, accommodationPressure: 95, transportUtilization: 92 }
+            : s
+        );
+
+        const prevLive = get().liveCrowdStates[zoneId] ?? {
+          zoneId,
+          peopleCount: 45000,
+          occupancyPercent: 95,
+          densityPerSqMeter: 3.8,
+          crowdLevel: "CRITICAL",
+          trend: "INCREASING",
+          confidencePercent: 98,
+          lastUpdated: "Just now",
+          source: "SIMULATED",
+        };
+
+        const nextLive = {
+          ...get().liveCrowdStates,
+          [zoneId]: {
+            ...prevLive,
+            occupancyPercent: 95,
+            crowdLevel: "CRITICAL" as const,
+            trend: "INCREASING" as const,
+            lastUpdated: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", second: "2-digit" }),
+          },
+        };
+
+        const newGates = get().venueGates.map((g) =>
+          g.zoneId === zoneId && g.id === "gate-a"
+            ? { ...g, status: "elevated" as const, currentQueue: 1850, estimatedWaitMinutes: 25 }
+            : g
+        );
+
+        const newIncident: Incident = {
+          id: `inc-red-${now}`,
+          type: "crowd",
+          zoneId,
+          description: `Operator Emergency Override: ${triggerReason}`,
+          severity: "critical",
+          status: "open",
+        };
+
+        set((state) => ({
+          zoneSnapshots: newSnapshots,
+          liveCrowdStates: nextLive,
+          venueGates: newGates,
+          incidents: [newIncident, ...state.incidents],
+          lastActionDispatchedAt: now,
+          lastActionTitle: `Emergency Red-Zone Override (${zoneId.toUpperCase()})`,
+          lastActionZoneId: zoneId,
+        }));
+
+        get().recalculatePredictions();
+      },
 
       simulateScenario: (interventions) => {
         const state = get();
@@ -927,6 +1027,7 @@ export const useSimulationStore = create<SimulationState>()(
           status: "active",
         };
 
+        const now = Date.now();
         set((state) => ({
           phase: "outcome",
           zoneSnapshots: newSnapshots,
@@ -935,7 +1036,11 @@ export const useSimulationStore = create<SimulationState>()(
           visitorTravelMinutes: 31,
           measurements: [newMeasurement, ...state.measurements],
           activeInterventions: [newActiveIntervention, ...state.activeInterventions],
+          lastActionDispatchedAt: now,
+          lastActionTitle: title,
+          lastActionZoneId: "central",
         }));
+        get().recalculatePredictions();
       },
 
       addIncident: (inc) => {
@@ -999,6 +1104,14 @@ export const useSimulationStore = create<SimulationState>()(
           activeInterventions: [],
           measurements: [],
           visitorTravelMinutes: 42,
+          isReplayMode: false,
+          replayScenarioTitle: null,
+          replayCurrentTimestamp: null,
+          replayWarningTime: null,
+          replayPeakTime: null,
+          lastActionDispatchedAt: null,
+          lastActionTitle: null,
+          lastActionZoneId: null,
         });
       },
     }),
@@ -1023,6 +1136,14 @@ export const useSimulationStore = create<SimulationState>()(
         activeInterventions: state.activeInterventions,
         measurements: state.measurements,
         visitorTravelMinutes: state.visitorTravelMinutes,
+        isReplayMode: state.isReplayMode,
+        replayScenarioTitle: state.replayScenarioTitle,
+        replayCurrentTimestamp: state.replayCurrentTimestamp,
+        replayWarningTime: state.replayWarningTime,
+        replayPeakTime: state.replayPeakTime,
+        lastActionDispatchedAt: state.lastActionDispatchedAt,
+        lastActionTitle: state.lastActionTitle,
+        lastActionZoneId: state.lastActionZoneId,
       }),
       merge: (persisted, current) => {
         const p = (persisted as Partial<SimulationState> | undefined) ?? {};
@@ -1052,6 +1173,14 @@ export const useSimulationStore = create<SimulationState>()(
           activeInterventions: p.activeInterventions ?? current.activeInterventions,
           measurements: p.measurements ?? current.measurements,
           visitorTravelMinutes: p.visitorTravelMinutes ?? current.visitorTravelMinutes,
+          isReplayMode: p.isReplayMode ?? current.isReplayMode,
+          replayScenarioTitle: p.replayScenarioTitle ?? current.replayScenarioTitle,
+          replayCurrentTimestamp: p.replayCurrentTimestamp ?? current.replayCurrentTimestamp,
+          replayWarningTime: p.replayWarningTime ?? current.replayWarningTime,
+          replayPeakTime: p.replayPeakTime ?? current.replayPeakTime,
+          lastActionDispatchedAt: p.lastActionDispatchedAt ?? current.lastActionDispatchedAt,
+          lastActionTitle: p.lastActionTitle ?? current.lastActionTitle,
+          lastActionZoneId: p.lastActionZoneId ?? current.lastActionZoneId,
         };
       },
     },

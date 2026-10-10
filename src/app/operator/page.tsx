@@ -157,7 +157,7 @@ export default function OperatorOverviewPage() {
                   : "text-foreground-muted hover:text-foreground"
               }`}
             >
-              <Radio className="h-3.5 w-3.5" /> 📡 Live Operations Center
+              <Radio className="h-3.5 w-3.5" /> 📡 Mahakumbh Command Center
             </button>
 
             <button
@@ -169,7 +169,7 @@ export default function OperatorOverviewPage() {
                   : "text-foreground-muted hover:text-foreground"
               }`}
             >
-              <MapPin className="h-3.5 w-3.5" /> 🛠️ Spatial Event Builder
+              <MapPin className="h-3.5 w-3.5" /> 🛠️ Mahakumbh Event Zone Builder
             </button>
 
             <button

@@ -18,6 +18,112 @@ import {
 
 export const PRESET_SCENARIOS: EventScenario[] = [
   {
+    id: "chinnaswamy-5min-replay",
+    name: "Bengaluru Chinnaswamy 2025 Incident Replay (5-Min)",
+    category: "historical_replay",
+    totalDurationSeconds: 300,
+    isHistoricalReplay: true,
+    sourceManifestId: "bengaluru-chinnaswamy-2025",
+    warningTime: "15:15 IST",
+    projectedPeakTime: "15:30 IST",
+    description: "5-minute accelerated historical replay of the June 4, 2025 Chinnaswamy Stadium crowd surge (Justice D'Cunha Inquiry Report). Generates early warning 15 mins prior to peak.",
+    steps: [
+      {
+        id: "blr-step-1-baseline",
+        label: "Stage 1: Baseline Inflow (14:00 IST)",
+        historicalTimestamp: "14:00 IST",
+        replayTimeSeconds: 0,
+        durationMs: 8000,
+        provenance: "REAL SOURCE DATA",
+        description: "Fans gather outside Gate 1 & Cubbon Road; wait times under 5 mins. Normal baseline.",
+        historicalFact: "Official inquiry records arrival influx begins post-14:00 IST announcements outside M. Chinnaswamy Stadium.",
+        simulatedInputNote: "Headcount input 24,000 (~68% design capacity) is a calibrated demonstration baseline.",
+        canonicalRecordId: "REC-BLR-001",
+        measurementNote: "35,000 Design Capacity is REAL SOURCE DATA from KSCA specification. Sub-minute counts are UNAVAILABLE.",
+        patch: {
+          phase: "normal",
+          zoneSnapshots: zoneSnapshotsNormal,
+          venueGates: venueGatesNormal,
+          routes: resolveRoutes(transportSnapshotsNormal),
+          cameras: resolveCameras(cameraObservationsNormal),
+        },
+      },
+      {
+        id: "blr-step-2-surge",
+        label: "Stage 2: Arrival Acceleration (14:45 IST)",
+        historicalTimestamp: "14:45 IST",
+        replayTimeSeconds: 150,
+        durationMs: 8000,
+        provenance: "REAL SOURCE DATA",
+        description: "MG Road Metro & Cubbon Road shuttles drop thousands of arrivals. Pressure rises to 74%.",
+        historicalFact: "Traffic chokes on MG Road and arterial Cubbon Road around 14:45–15:00 IST.",
+        simulatedInputNote: "Inflow surge trajectory reflects accelerating convergence toward gates.",
+        canonicalRecordId: "REC-BLR-002",
+        measurementNote: "Bottleneck occurrence is DOCUMENTED REPORTING (The Hindu). Continuous IoT inflow rates are UNAVAILABLE.",
+        patch: {
+          phase: "demand-spike",
+          zoneSnapshots: zoneSnapshotsNormal.map((s) =>
+            s.zoneId === "central"
+              ? { ...s, crowdPressure: 74, accommodationPressure: 74, transportUtilization: 78 }
+              : s,
+          ),
+          venueGates: venueGatesNormal.map((g) =>
+            g.id === "gate-a"
+              ? { ...g, currentQueue: 680, estimatedWaitMinutes: 10, status: "elevated" }
+              : g,
+          ),
+        },
+      },
+      {
+        id: "blr-step-3-warning",
+        label: "Stage 3: EARLY WARNING TRIGGERED (15:15 IST — 15m Pre-Incident)",
+        historicalTimestamp: "15:15 IST",
+        replayTimeSeconds: 250,
+        durationMs: 8000,
+        provenance: "THRESHOLD TRIGGER",
+        isWarningStep: true,
+        warningTime: "15:15 IST",
+        projectedPeakTime: "15:30 IST",
+        description: "CRITICAL THRESHOLD TRIGGER (91% >= 85%). Warning issued 15 minutes before 15:30 IST documented crush milestone.",
+        historicalFact: "Historically, no diversion was issued; crowds continued funneling toward locked Gate 1.",
+        simulatedInputNote: "Threshold trigger generated deterministically by net-flow extrapolation rule.",
+        canonicalRecordId: "REC-BLR-003",
+        measurementNote: "Warning is a deterministic PRAVAAH THRESHOLD TRIGGER. No warning was historically issued by ground authorities.",
+        patch: {
+          phase: "recommendation",
+          zoneSnapshots: zoneSnapshotsSpike,
+          venueGates: venueGatesElevated,
+          routes: resolveRoutes(transportSnapshotsSpike),
+          cameras: resolveCameras(cameraObservationsSpike),
+        },
+      },
+      {
+        id: "blr-step-4-intervention",
+        label: "Stage 4: Counterfactual Diversion & Reroute (15:30 IST — Crush Milestone)",
+        historicalTimestamp: "15:30 IST",
+        replayTimeSeconds: 300,
+        durationMs: 8000,
+        provenance: "REAL SOURCE DATA",
+        isPeakStep: true,
+        warningTime: "15:15 IST",
+        projectedPeakTime: "15:30 IST",
+        description: "Documented Crush Milestone (15:30): 11 fatalities at perimeter. Counterfactual: System diverts flow to Gate 2 in <1s.",
+        historicalFact: "Justice D'Cunha inquiry confirms fatal crowd crush occurred at perimeter gates around 15:30 IST. Replay concludes here at T+300s.",
+        simulatedInputNote: "Counterfactual intervention re-routes visitor path within <1 second across connected devices.",
+        canonicalRecordId: "REC-BLR-004",
+        measurementNote: "11 Fatalities & 47–71 Injuries are REAL SOURCE DATA (Commission Report). Reroute avoidance is a REPLAY SIMULATED counterfactual.",
+        patch: {
+          phase: "response",
+          venueGates: venueGatesElevated.map((g) => {
+            if (g.id === "gate-a") return { ...g, currentQueue: 720, estimatedWaitMinutes: 10 };
+            if (g.id === "gate-b") return { ...g, currentQueue: 380, estimatedWaitMinutes: 5 };
+            return g;
+          }),
+        },
+      },
+    ],
+  },
+  {
     id: "arrival-surge",
     name: "Arrival Surge & Flow Redistribution",
     category: "congestion",

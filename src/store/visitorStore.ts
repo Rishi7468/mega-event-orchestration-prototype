@@ -1,5 +1,5 @@
 import { create } from "zustand";
-import { DEFAULT_ORIGIN_ID, visitorProfile } from "@/data";
+import { DEFAULT_ORIGIN_ID, PRIMARY_DESTINATION_ID, visitorProfile } from "@/data";
 import { subscribeDemoReset } from "@/lib/demoReset";
 import type { VisitorProfile } from "@/types";
 
@@ -130,7 +130,17 @@ export const useVisitorStore = create<VisitorState>()(
 
       keepOriginalPlan: () => set({ keptOriginalPlan: true }),
 
-      resetTrip: () => set({ ...initialState }),
+      resetTrip: () =>
+        set({
+          ...initialState,
+          destinationId: PRIMARY_DESTINATION_ID,
+          selectedZoneId: "south",
+          gateId: "gate-2",
+          journeyStarted: true,
+          departureTime: "07:30",
+          currentStepIndex: 0,
+          keptOriginalPlan: false,
+        }),
     }),
     {
       name: "meho.visitor.v1",

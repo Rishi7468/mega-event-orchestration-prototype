@@ -15,7 +15,7 @@ import {
 } from "lucide-react";
 import { VisitorInteractiveMap } from "@/components/map";
 import { Button, Card, Chip, SectionHeading, StickyActions } from "@/components/shared";
-import { JourneyTimeline, VisitorPageHeader } from "@/components/visitor";
+import { JourneyTimeline, VisitorPageHeader, VisitorResetControl } from "@/components/visitor";
 import { useTripIntent } from "@/hooks/useTripIntent";
 import { useVisitorJourney } from "@/hooks/useVisitorJourney";
 import { useVisitorStore } from "@/store/visitorStore";
@@ -61,6 +61,7 @@ export default function JourneyPlannerPage() {
         title="My Journey to Venue"
         subtitle={`${journey.propertyName} → ${journey.gate.name}`}
         backHref={`/visitor/plan/stay/${journey.zoneId}`}
+        action={<VisitorResetControl />}
       />
 
       <div className="space-y-5">

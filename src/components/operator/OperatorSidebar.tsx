@@ -8,10 +8,10 @@ import { SimulationControl } from "./SimulationControl";
 import { useEventAuthoringStore } from "@/store/eventAuthoringStore";
 
 const NAV_ITEMS = [
-  { href: "/operator", label: "Command Center", icon: LayoutGrid },
-  { href: "/operator/demand", label: "Demand & Capacity", icon: Gauge },
-  { href: "/operator/crowd", label: "Crowd Intelligence", icon: Users },
-  { href: "/operator/interventions", label: "Interventions", icon: AlertTriangle },
+  { href: "/operator", label: "Mahakumbh Command", icon: LayoutGrid },
+  { href: "/operator/demand", label: "Crowd Density & Risk", icon: Gauge },
+  { href: "/operator/crowd", label: "Ghat Crowd Monitoring", icon: Users },
+  { href: "/operator/interventions", label: "Crowd Diversion & Routes", icon: AlertTriangle },
 ];
 
 export function OperatorSidebar() {
